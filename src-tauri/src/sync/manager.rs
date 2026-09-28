@@ -18,7 +18,8 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use super::audio::analyzer::Features;
 use super::audio::capture::{AudioEvent, AudioInput, AudioSource};
-use super::effects::{self, Effect, MusicEffect, MusicStyle, PaletteCycle};
+use super::effects::{self, Effect, MusicEffect, MusicStyle, PaletteCycle, ScreenEffect};
+use super::screen::capture::{ScreenEvent, ScreenSource};
 use super::entertainment::api::{Area, BridgeAccess};
 use super::entertainment::dtls::DtlsStream;
 use super::entertainment::protocol::{encode, ChannelColor, ColorSpace};
@@ -55,7 +56,7 @@ pub enum SyncStatus {
 #[serde(rename_all = "camelCase")]
 pub struct SyncRequest {
     pub area_id: String,
-    /// "ambient" | "music" ("screen" comes with stage 3)
+    /// "ambient" | "music" | "screen"
     pub mode: String,
     /// Music: "pulse" | "spectrum" | "beat"
     #[serde(default)]
@@ -63,6 +64,9 @@ pub struct SyncRequest {
     /// Music: "system" | "microphone"
     #[serde(default)]
     pub source: Option<String>,
+    /// Screen: RandR monitor name (None = primary)
+    #[serde(default)]
+    pub monitor: Option<String>,
     /// Photosensitivity guard: at most three flashes per second.
     #[serde(default = "default_true")]
     pub safe_mode: bool,
@@ -188,8 +192,9 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
     );
 
     let palette: Vec<_> = request.palette.iter().filter_map(|h| effects::parse_hex(h)).collect();
-    // Audio is captured for the session's lifetime; dropping it stops capture.
+    // Inputs are captured for the session's lifetime; dropping them stops capture.
     let mut audio: Option<AudioSource> = None;
+    let mut screen: Option<ScreenSource> = None;
     let effect: Box<dyn Effect> = match request.mode.as_str() {
         "music" => {
             let features = Arc::new(Mutex::new(Features::default()));
@@ -224,6 +229,27 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
                 lost,
             ))
         }
+        "screen" => {
+            let grid = Arc::new(Mutex::new(None));
+            let lost = Arc::new(AtomicBool::new(false));
+            let log_app = app.clone();
+            let on_event = Box::new(move |event: ScreenEvent| {
+                let (level, code, message) = match event {
+                    ScreenEvent::Opened(what) => ("info", "sync.screen_opened", format!("Capturing {what}")),
+                    ScreenEvent::Lost(why) => ("warn", "sync.screen_lost", format!("Screen capture lost: {why}")),
+                    ScreenEvent::Restored => ("info", "sync.screen_restored", "Screen capture is back".to_string()),
+                };
+                logs::write(&log_app, level, "app", code, message, None);
+            });
+            match ScreenSource::start(request.monitor.clone(), grid.clone(), lost.clone(), on_event) {
+                Ok(source) => screen = Some(source),
+                Err(message) => {
+                    let _ = access.set_streaming(&hue, &area.id, false).await;
+                    return fail(app, "screen", message);
+                }
+            }
+            Box::new(ScreenEffect::new(request.intensity, request.safe_mode, grid, lost))
+        }
         _ => Box::new(PaletteCycle::new(palette, request.intensity)),
     };
 
@@ -233,6 +259,7 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
         move || {
             let result = stream_loop(&app, &stop, &area, &ip, &key, &client_key, effect);
             drop(audio); // capture ends with the stream
+            drop(screen);
             result
         }
     });

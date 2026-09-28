@@ -25,9 +25,13 @@ openssl = "0.10"
 rustfft = "6.4"
 libpulse-binding = { version = "2.30", optional = true }
 libpulse-simple-binding = { version = "2.29", optional = true }
+x11rb = { version = "0.14", features = ["shm", "randr"], optional = true }
+libc = { version = "0.2", optional = true }
 
 [features]
-default = ["sync-audio"]
+default = ["sync-audio", "sync-screen"]
 # Music sync: system audio / microphone capture through PulseAudio (works on
 # PipeWire too). Needs libpulse-dev to build; without it, music mode is off.
 sync-audio = ["dep:libpulse-binding", "dep:libpulse-simple-binding"]
+# Screen sync: X11 capture through MIT-SHM (pure-Rust x11rb, no libxcb).
+sync-screen = ["dep:x11rb", "dep:libc"]

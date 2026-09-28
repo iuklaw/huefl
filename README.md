@@ -72,7 +72,8 @@ src-tauri/src/
   tray.rs              ikona i menu w zasobniku, akcje menu obslugiwane natywnie
   i18n.rs              tlumaczenia po stronie Rust (ten sam en.json)
   sync/                synchronizacja: entertainment/ (REST, DTLS, protokol),
-                       audio/ (przechwytywanie, analiza), effects, smoothing,
+                       audio/ (przechwytywanie, analiza), screen/ (X11, strefy),
+                       effects, smoothing,
                        readiness (checklista), manager (sesja, sprzatanie)
   window.rs            chowanie/pokazywanie okna z zachowaniem pozycji
   lib.rs               start aplikacji, rejestracja komend, obsluga zamykania okna
@@ -162,7 +163,11 @@ Tryby:
   pipewire-pulse (samo ALSA / czysty JACK nie wystarcza — aplikacja to wykrywa
   i mowi wprost). Zmiana wyjscia w trakcie (np. na sluchawki) i restart serwera
   dzwieku sa obslugiwane: przechwytywanie przelacza sie / wraca samo.
-- **Screen** — w przygotowaniu.
+- **Screen** — lampy biora kolory z ekranu, kazda z czesci najblizszej jej
+  pozycji w obszarze (x → poziomo, wysokosc z → pionowo). X11 + MIT-SHM
+  (czysty Rust, `x11rb`), ~25 klatek/s, ok. 5% jednego rdzenia CPU. Czarne pasy
+  filmow sa pomijane, kolory lekko nasycane, tryb bezpieczny dziala tez tu.
+  Wayland: jeszcze nie (wymaga portalu xdg-desktop-portal) — aplikacja to mowi.
 
 Caly silnik dziala w Rust (`src-tauri/src/sync/`), bo JS w schowanym oknie jest
 usypiany, a synchronizacja ma dzialac z traya. Po zatrzymaniu lampy wracaja do
@@ -176,6 +181,8 @@ cd src-tauri
 cargo test --lib live_stream_rainbow -- --ignored --nocapture   # 5 s teczy
 cargo test --lib live_overview -- --ignored --nocapture         # checklista
 cargo test --lib live_capture -- --ignored --nocapture          # 2 s dzwieku
+cargo test --lib live_screen -- --ignored --nocapture           # 1 s ekranu
+cargo test --lib live_stream_screen -- --ignored --nocapture    # 5 s ekran -> lampy
 ```
 
 ## Autostart

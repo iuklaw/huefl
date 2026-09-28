@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use super::audio::analyzer::Features;
 use super::entertainment::api::AreaChannel;
+use super::screen::zones::{zone_colors, Grid};
 use super::smoothing::{Envelope, SafetyLimiter};
 
 /// Linear RGB, 0.0..=1.0.
@@ -193,6 +194,69 @@ impl Effect for MusicEffect {
     }
 }
 
+// --- Screen ------------------------------------------------------------------
+
+/// Reaction time per intensity step (0 subtle … 3 extreme), seconds.
+const SCREEN_FOLLOW: [f32; 4] = [0.5, 0.25, 0.12, 0.05];
+
+/// Each light follows the part of the screen matching its place in the area
+/// (screen::zones). Colors glide rather than jump; the safe mode caps flashes
+/// here too — films and games have explosions and strobes.
+pub struct ScreenEffect {
+    grid: Arc<Mutex<Option<Grid>>>,
+    follow: f32,
+    envelopes: Vec<[Envelope; 3]>,
+    safe: Option<SafetyLimiter>,
+    lost: Arc<AtomicBool>,
+}
+
+impl ScreenEffect {
+    pub fn new(intensity: u8, safe_mode: bool, grid: Arc<Mutex<Option<Grid>>>, lost: Arc<AtomicBool>) -> Self {
+        Self {
+            grid,
+            follow: SCREEN_FOLLOW[usize::from(intensity.min(3))],
+            envelopes: Vec::new(),
+            safe: safe_mode.then(SafetyLimiter::default),
+            lost,
+        }
+    }
+}
+
+impl Effect for ScreenEffect {
+    fn render(&mut self, dt: f32, channels: &[AreaChannel]) -> Vec<Rgb> {
+        let targets = match self.grid.lock().unwrap().as_ref() {
+            Some(grid) => zone_colors(grid, channels),
+            None => vec![[0.0; 3]; channels.len()],
+        };
+        self.envelopes.resize(channels.len(), [Envelope::default(); 3]);
+        let mut colors: Vec<Rgb> = targets
+            .iter()
+            .zip(&mut self.envelopes)
+            .map(|(target, env)| [0, 1, 2].map(|c| env[c].step(target[c], dt, self.follow, self.follow)))
+            .collect();
+
+        if let Some(limiter) = &mut self.safe {
+            let before: Vec<f32> = colors.iter().map(|c| c.iter().cloned().fold(0.0, f32::max)).collect();
+            let mut after = before.clone();
+            limiter.apply(dt, &mut after);
+            for ((color, b), a) in colors.iter_mut().zip(&before).zip(&after) {
+                if *b > 0.0 && a < b {
+                    *color = color.map(|v| v * a / b);
+                }
+            }
+        }
+        colors
+    }
+
+    fn limited_flashes(&self) -> u32 {
+        self.safe.as_ref().map_or(0, |s| s.limited)
+    }
+
+    fn input_lost(&self) -> bool {
+        self.lost.load(Ordering::Relaxed)
+    }
+}
+
 /// Which band a light shows in the spectrum style: the leftmost third bass,
 /// then mid, then treble (one light: bass; two: bass and treble).
 fn band_of(rank: usize, n: usize) -> usize {
@@ -351,6 +415,25 @@ mod tests {
         }
         assert!(big_rises <= 2 * 3 + 1, "big rises in 2 s: {big_rises}");
         assert!(effect.limited_flashes() > 0, "the limiter had to step in");
+    }
+
+    #[test]
+    fn screen_effect_follows_the_grid_and_dims_without_it() {
+        use crate::sync::screen::zones::{GRID_COLS, GRID_ROWS};
+        let red = Grid { cells: vec![[1.0, 0.0, 0.0]; GRID_COLS * GRID_ROWS] };
+        let grid = Arc::new(Mutex::new(Some(red)));
+        let mut effect = ScreenEffect::new(3, false, grid.clone(), Arc::default());
+        let channels = [channel(0, 0.0)];
+        let mut color = [0.0; 3];
+        for _ in 0..25 {
+            color = effect.render(0.02, &channels)[0];
+        }
+        assert!(color[0] > 0.9 && color[1] < 0.05, "{color:?}");
+        *grid.lock().unwrap() = None; // capture lost
+        for _ in 0..25 {
+            color = effect.render(0.02, &channels)[0];
+        }
+        assert!(color[0] < 0.05, "dims when the screen is gone: {color:?}");
     }
 
     #[test]

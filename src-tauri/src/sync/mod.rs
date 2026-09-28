@@ -14,6 +14,7 @@ pub mod effects;
 pub mod entertainment;
 pub mod manager;
 pub mod readiness;
+pub mod screen;
 pub mod smoothing;
 
 use serde::Serialize;
@@ -37,6 +38,8 @@ pub struct SyncOverview {
     status: SyncStatus,
     /// False in builds without the `sync-audio` feature: music mode is off.
     audio_supported: bool,
+    /// False without `sync-screen`, on Wayland, or without a display.
+    screen_supported: bool,
 }
 
 /// Everything the Sync tab needs in one call: checklist, areas, lights, status.
@@ -73,6 +76,7 @@ pub async fn sync_overview(
         areas: &areas,
         busy_area: busy_area.as_deref(),
         audio: Some(&audio),
+        screen: Some(screen::capture::unavailable_reason()),
     });
     Ok(SyncOverview {
         ready: readiness::is_ready(&checks),
@@ -81,6 +85,7 @@ pub async fn sync_overview(
         lights,
         status,
         audio_supported: cfg!(feature = "sync-audio"),
+        screen_supported: screen::capture::unavailable_reason().is_none(),
     })
 }
 
@@ -90,6 +95,12 @@ pub fn sync_audio_devices(app: AppHandle) -> Result<AudioDevices, AudioProblem> 
     let devices = audio::devices::default_devices();
     logs::write(&app, "debug", "app", "sync.audio_devices", format!("{devices:?}"), None);
     devices
+}
+
+/// Monitors for screen sync (RandR names, sizes, which is primary).
+#[tauri::command]
+pub fn sync_monitors() -> Result<Vec<screen::capture::Monitor>, String> {
+    screen::capture::monitors()
 }
 
 #[tauri::command]
@@ -159,6 +170,7 @@ mod live {
             areas: &areas,
             busy_area: None,
             audio: Some(&audio::devices::default_devices()),
+            screen: Some(screen::capture::unavailable_reason()),
         });
         println!("bridge {model:?} api {api:?}");
         for c in &checks {
@@ -169,5 +181,71 @@ mod live {
         }
         println!("lights {:?}", lights.iter().map(|l| (&l.light_id[..8], l.renderer)).collect::<Vec<_>>());
         assert!(readiness::is_ready(&checks));
+    }
+
+    /// Live: the whole screen path on real lights for 5 s (screen → effect →
+    /// DTLS), then the lights are restored. Prints packets/s and CPU time.
+    /// Run: `cargo test --lib live_stream_screen -- --ignored --nocapture`
+    #[cfg(feature = "sync-screen")]
+    #[tokio::test]
+    #[ignore]
+    async fn live_stream_screen() {
+        use std::sync::atomic::AtomicBool;
+        use std::sync::{Arc, Mutex};
+        use std::time::{Duration, Instant};
+
+        use effects::{Effect, ScreenEffect};
+        use entertainment::dtls::DtlsStream;
+        use entertainment::protocol::{encode, ChannelColor, ColorSpace};
+        use screen::capture::ScreenSource;
+
+        let hue = HueState::default();
+        let (access, client_key) = manager::bridge_access().unwrap();
+        let area = access.areas(&hue).await.unwrap().into_iter().next().expect("an area");
+        let saved = access.light_snapshot(&hue, &area.light_ids).await.unwrap();
+
+        let grid = Arc::new(Mutex::new(None));
+        let lost = Arc::new(AtomicBool::new(false));
+        let source = ScreenSource::start(None, grid.clone(), lost.clone(), Box::new(|e| println!("screen: {e:?}"))).unwrap();
+        let mut effect = ScreenEffect::new(1, true, grid, lost);
+
+        access.set_streaming(&hue, &area.id, true).await.unwrap();
+        let cpu_before = cpu_seconds();
+        let (sent, last) = tokio::task::spawn_blocking({
+            let (ip, key, area) = (access.ip.clone(), access.key.clone(), area.clone());
+            move || {
+                let mut stream = DtlsStream::connect(&ip, &key, &client_key.unwrap()).unwrap();
+                let begin = Instant::now();
+                let (mut sent, mut last) = (0u32, vec![]);
+                while begin.elapsed() < Duration::from_secs(5) {
+                    last = effect.render(0.02, &area.channels);
+                    let channels: Vec<_> = area.channels.iter().zip(&last).map(|(c, rgb)| ChannelColor::rgb(c.channel_id, rgb[0], rgb[1], rgb[2])).collect();
+                    stream.send(&encode(sent as u8, &area.id, ColorSpace::Rgb, &channels).unwrap()).unwrap();
+                    sent += 1;
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+                stream.close();
+                (sent, last)
+            }
+        })
+        .await
+        .unwrap();
+        let cpu = cpu_seconds() - cpu_before;
+        drop(source);
+
+        access.set_streaming(&hue, &area.id, false).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        access.restore_lights(&hue, &saved).await.unwrap();
+
+        println!("sent {sent} packets ({:.0}/s), CPU {:.0}% of one core, last colors {last:?}", sent as f32 / 5.0, cpu / 5.0 * 100.0);
+        assert!(sent > 150);
+    }
+
+    /// This process's user + system CPU time, seconds.
+    fn cpu_seconds() -> f64 {
+        let stat = std::fs::read_to_string("/proc/self/stat").unwrap();
+        let fields: Vec<&str> = stat.rsplit(')').next().unwrap().split_whitespace().collect();
+        let ticks: f64 = fields[11].parse::<f64>().unwrap() + fields[12].parse::<f64>().unwrap();
+        ticks / 100.0
     }
 }

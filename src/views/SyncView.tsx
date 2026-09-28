@@ -49,9 +49,14 @@ import { toHex } from "@/lib/color";
 import { POPULAR_PALETTES } from "@/lib/palettes";
 import { paletteBackground, paletteHex, scenePreview } from "@/lib/presets";
 import { cn } from "@/lib/utils";
-import type { AudioSource, MusicStyle, ReadinessCheck, SyncArea, SyncMode } from "@/types";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import type {
+  AudioSource,
+  Monitor as MonitorInfo,
+  MusicStyle,
+  ReadinessCheck,
+  SyncArea,
+  SyncMode,
+} from "@/types";
 
 type Props = { onRepair: () => void };
 
@@ -73,6 +78,20 @@ export function SyncView({ onRepair }: Props) {
       onSaved={(areaId) => void actions.setSyncPrefs({ areaId })}
     />
   );
+
+  // Ready: the controls lay out their own scrolling part and bottom bar.
+  if (overview && (overview.ready || status.state === "streaming")) {
+    return (
+      <>
+        <SyncControls
+          areas={overview.areas}
+          onNewArea={() => setWizard({ open: true })}
+          onEditArea={(area) => setWizard({ open: true, area })}
+        />
+        {wizardDialog}
+      </>
+    );
+  }
 
   return (
     <ScrollArea className="min-h-0 flex-1">
@@ -110,14 +129,6 @@ export function SyncView({ onRepair }: Props) {
           </section>
         )}
 
-        {overview && (overview.ready || status.state === "streaming") && (
-          <SyncControls
-            areas={overview.areas}
-            onNewArea={() => setWizard({ open: true })}
-            onEditArea={(area) => setWizard({ open: true, area })}
-          />
-        )}
-
         {wizardDialog}
       </div>
     </ScrollArea>
@@ -126,10 +137,15 @@ export function SyncView({ onRepair }: Props) {
 
 // --- Controls ------------------------------------------------------------------
 
+/** One text size for every select in the Sync tab (as in "Sound from"). */
+const SELECT_TEXT = "text-xs font-medium";
+/** Secondary text inside select items: light counts, sizes, device names. */
+const SELECT_NOTE = "text-[11px] font-normal text-muted-foreground";
+
 const MODES: { mode: SyncMode; icon: typeof Music; available: boolean }[] = [
   { mode: "ambient", icon: Sparkles, available: true },
   { mode: "music", icon: Music, available: true },
-  { mode: "screen", icon: Monitor, available: false },
+  { mode: "screen", icon: Monitor, available: true },
 ];
 
 function SyncControls({
@@ -178,8 +194,16 @@ function SyncControls({
   );
   const source = colorSources.find((c) => c.id === syncPrefs.colorsFrom) ?? colorSources[0]!;
 
-  // Screen mode is not available yet; a stored choice falls back to ambient.
-  const mode = syncPrefs.mode === "music" ? "music" : "ambient";
+  // A stored mode this machine can't run (no audio / no X11) falls back to ambient.
+  const audioOk = overview?.audioSupported !== false;
+  const screenOk = overview?.screenSupported !== false;
+  const mode: SyncMode =
+    syncPrefs.mode === "music" && audioOk
+      ? "music"
+      : syncPrefs.mode === "screen" && screenOk
+        ? "screen"
+        : "ambient";
+  const screenCheck = overview?.checks.find((c) => c.id === "screen");
 
   const start = (takeOver = false) => {
     if (!area) return;
@@ -191,6 +215,7 @@ function SyncControls({
       restore: syncPrefs.restore,
       style: syncPrefs.musicStyle,
       source: syncPrefs.audioSource,
+      monitor: syncPrefs.screenMonitor,
       safeMode: syncPrefs.safeMode,
       takeOver,
     });
@@ -199,194 +224,221 @@ function SyncControls({
   if (!area) return null;
 
   return (
-    <div className="space-y-4">
-      {/* Area */}
-      <Field label={t("sync.area.label")}>
-        <div className="flex gap-1.5">
-          <Select
-            value={area.id}
-            disabled={busy}
-            onValueChange={(areaId) => void actions.setSyncPrefs({ areaId })}
-          >
-            <SelectTrigger className="min-w-0 flex-1" aria-label={t("sync.area.label")}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {areas.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.name}
-                  <span className="text-xs text-muted-foreground">
-                    {t("sync.area.lights_in", { count: a.lightIds.length })}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <IconButton label={t("sync.area.new")} disabled={busy} onClick={onNewArea}>
-            <Plus />
-          </IconButton>
-          <IconButton label={t("sync.area.edit")} disabled={busy} onClick={() => onEditArea(area)}>
-            <Pencil />
-          </IconButton>
-          <IconButton
-            label={t("sync.area.delete")}
-            disabled={busy}
-            onClick={() => setConfirmDelete(true)}
-          >
-            <Trash2 />
-          </IconButton>
-        </div>
-      </Field>
-
-      {/* Mode */}
-      <Field label={t("sync.mode.label")}>
-        <div className="grid grid-cols-3 gap-1.5">
-          {MODES.map(({ mode: m, icon: Icon, available: planned }) => {
-            const noAudio = m === "music" && overview?.audioSupported === false;
-            const available = planned && !noAudio;
-            return (
-              <button
-                key={m}
-                type="button"
-                disabled={!available || busy}
-                onClick={() => void actions.setSyncPrefs({ mode: m })}
-                className={cn(
-                  // Grid rows stretch every tile to the tallest one; keep the
-                  // content in the middle of each.
-                  "flex flex-col items-center justify-center gap-1 rounded-lg border px-2 py-2.5 text-center text-xs transition-colors outline-none",
-                  "focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed",
-                  mode === m && available
-                    ? "border-primary bg-primary/10"
-                    : "border-border hover:bg-accent disabled:opacity-50 disabled:hover:bg-transparent",
-                )}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-4 p-3">
+          {/* Area */}
+          <Field label={t("sync.area.label")}>
+            <div className="flex gap-1.5">
+              <Select
+                value={area.id}
+                disabled={busy}
+                onValueChange={(areaId) => void actions.setSyncPrefs({ areaId })}
               >
-                <Icon className="size-4" aria-hidden />
-                <span className="font-medium">{t(`sync.mode.${m}` as MessageKey)}</span>
-                {!available && (
-                  <span className="text-[10px] text-muted-foreground">
-                    {noAudio ? t("sync.mode_unavailable") : t("sync.coming_soon")}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-xs text-muted-foreground">{t(`sync.mode_hint.${mode}`)}</p>
-      </Field>
-
-      {mode === "music" && <MusicSettings disabled={busy} audioCheck={audioCheck} />}
-
-      {/* Colors */}
-      <Field label={t("sync.colors")}>
-        <Select
-          value={source.id}
-          disabled={busy}
-          onValueChange={(colorsFrom) => void actions.setSyncPrefs({ colorsFrom })}
-        >
-          <SelectTrigger className="w-full" aria-label={t("sync.colors")}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(["popular", "saved"] as const).map((group) => {
-              const items = colorSources.filter((c) => c.group === group);
-              if (items.length === 0) return null;
-              return (
-                <SelectGroup key={group}>
-                  <SelectLabel>{t(`presets.${group}`)}</SelectLabel>
-                  {items.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      <span
-                        className="h-3 w-6 rounded-sm ring-1 ring-border"
-                        style={{ background: c.background }}
-                        aria-hidden
-                      />
-                      {c.name}
+                <SelectTrigger
+                  className={cn("min-w-0 flex-1", SELECT_TEXT)}
+                  aria-label={t("sync.area.label")}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {areas.map((a) => (
+                    <SelectItem key={a.id} value={a.id} className={SELECT_TEXT}>
+                      {a.name}
+                      <span className={SELECT_NOTE}>
+                        {t("sync.area.lights_in", { count: a.lightIds.length })}
+                      </span>
                     </SelectItem>
                   ))}
-                </SelectGroup>
-              );
-            })}
-          </SelectContent>
-        </Select>
-      </Field>
+                </SelectContent>
+              </Select>
+              <IconButton label={t("sync.area.new")} disabled={busy} onClick={onNewArea}>
+                <Plus />
+              </IconButton>
+              <IconButton
+                label={t("sync.area.edit")}
+                disabled={busy}
+                onClick={() => onEditArea(area)}
+              >
+                <Pencil />
+              </IconButton>
+              <IconButton
+                label={t("sync.area.delete")}
+                disabled={busy}
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 />
+              </IconButton>
+            </div>
+          </Field>
 
-      {/* Intensity */}
-      <Field label={t("sync.intensity")}>
-        <Segmented
-          options={[0, 1, 2, 3].map((level) => ({
-            value: String(level),
-            label: t(`sync.intensity.${level}` as MessageKey),
-          }))}
-          value={String(syncPrefs.intensity)}
-          disabled={busy}
-          onChange={(level) => void actions.setSyncPrefs({ intensity: Number(level) })}
-        />
-      </Field>
+          {/* Mode */}
+          <Field label={t("sync.mode.label")}>
+            <div className="grid grid-cols-3 gap-1.5">
+              {MODES.map(({ mode: m, icon: Icon, available: planned }) => {
+                const unsupported = (m === "music" && !audioOk) || (m === "screen" && !screenOk);
+                const available = planned && !unsupported;
+                // Why a mode is off here, e.g. "needs an X11 session".
+                const why =
+                  m === "screen" && screenCheck?.params?.reason
+                    ? t(`sync.check.screen.${screenCheck.params.reason}` as MessageKey)
+                    : undefined;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    title={why}
+                    disabled={!available || busy}
+                    onClick={() => void actions.setSyncPrefs({ mode: m })}
+                    className={cn(
+                      // Grid rows stretch every tile to the tallest one; keep the
+                      // content in the middle of each.
+                      "flex flex-col items-center justify-center gap-1 rounded-lg border px-2 py-2.5 text-center text-xs transition-colors outline-none",
+                      "focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed",
+                      mode === m && available
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:bg-accent disabled:opacity-50 disabled:hover:bg-transparent",
+                    )}
+                  >
+                    <Icon className="size-4" aria-hidden />
+                    <span className="font-medium">{t(`sync.mode.${m}` as MessageKey)}</span>
+                    {!available && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {unsupported ? t("sync.mode_unavailable") : t("sync.coming_soon")}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">{t(`sync.mode_hint.${mode}`)}</p>
+          </Field>
 
-      {/* Error */}
-      {status.state === "error" && (
-        <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-3">
-          <p className="text-sm font-semibold">{t("sync.error.title")}</p>
-          <p data-selectable className="mt-0.5 text-xs text-muted-foreground">
-            {status.message}
-          </p>
-          {status.code === "busy" && (
-            <Button size="sm" className="mt-2" onClick={() => start(true)}>
-              {t("sync.take_over")}
-            </Button>
+          {mode === "music" && <MusicSettings disabled={busy} audioCheck={audioCheck} />}
+          {mode === "screen" && <ScreenSettings disabled={busy} />}
+
+          {/* Colors — the screen brings its own */}
+          {mode !== "screen" && (
+            <Field label={t("sync.colors")}>
+              <Select
+                value={source.id}
+                disabled={busy}
+                onValueChange={(colorsFrom) => void actions.setSyncPrefs({ colorsFrom })}
+              >
+                <SelectTrigger className={cn("w-full", SELECT_TEXT)} aria-label={t("sync.colors")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(["popular", "saved"] as const).map((group) => {
+                    const items = colorSources.filter((c) => c.group === group);
+                    if (items.length === 0) return null;
+                    return (
+                      <SelectGroup key={group}>
+                        <SelectLabel>{t(`presets.${group}`)}</SelectLabel>
+                        {items.map((c) => (
+                          <SelectItem key={c.id} value={c.id} className={SELECT_TEXT}>
+                            <span
+                              className="h-3 w-6 rounded-sm ring-1 ring-border"
+                              style={{ background: c.background }}
+                              aria-hidden
+                            />
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </Field>
           )}
         </div>
-      )}
+      </ScrollArea>
 
-      {/* Start / Stop */}
-      <Button
-        size="lg"
-        className="h-11 w-full text-sm"
-        variant={running ? "secondary" : "default"}
-        disabled={status.state === "stopping" || status.state === "starting"}
-        onClick={() => (running ? void sync.stop() : start())}
-      >
-        {status.state === "starting" || status.state === "stopping" ? (
-          <Spinner />
-        ) : running ? (
-          <Square />
-        ) : (
-          <Play />
+      {/* Pinned to the bottom: always in reach, whatever is scrolled above.
+          pb-8 clears the app footer bar, which overlays the window's bottom. */}
+      <div className="shrink-0 space-y-3 border-t border-border bg-background px-3 pt-3 pb-8">
+        {/* Intensity */}
+        <Field label={t("sync.intensity")}>
+          <Segmented
+            options={[0, 1, 2, 3].map((level) => ({
+              value: String(level),
+              label: t(`sync.intensity.${level}` as MessageKey),
+            }))}
+            value={String(syncPrefs.intensity)}
+            disabled={busy}
+            onChange={(level) => void actions.setSyncPrefs({ intensity: Number(level) })}
+          />
+        </Field>
+
+        {/* Error */}
+        {status.state === "error" && (
+          <div
+            role="alert"
+            className="rounded-lg border border-destructive/40 bg-destructive/10 p-3"
+          >
+            <p className="text-sm font-semibold">{t("sync.error.title")}</p>
+            <p data-selectable className="mt-0.5 text-xs text-muted-foreground">
+              {status.message}
+            </p>
+            {status.code === "busy" && (
+              <Button size="sm" className="mt-2" onClick={() => start(true)}>
+                {t("sync.take_over")}
+              </Button>
+            )}
+          </div>
         )}
-        {status.state === "starting"
-          ? t("sync.starting")
-          : status.state === "stopping"
-            ? t("sync.stopping")
-            : running
-              ? t("sync.stop")
-              : t("sync.start")}
-      </Button>
 
-      {/* Live preview */}
-      {status.state === "streaming" && levels && <LevelMeters levels={levels} />}
-      {status.state === "streaming" && audioLost && (
-        <p
-          className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground"
-          aria-live="polite"
+        {/* Start / Stop */}
+        <Button
+          size="lg"
+          className="h-11 w-full text-sm"
+          variant={running ? "secondary" : "default"}
+          disabled={status.state === "stopping" || status.state === "starting"}
+          onClick={() => (running ? void sync.stop() : start())}
         >
-          <Spinner className="size-3" />
-          {t("sync.audio_waiting")}
-        </p>
-      )}
-      {status.state === "streaming" && preview.length > 0 && (
-        <div className="flex items-center justify-center gap-2" aria-label={t("sync.live")}>
-          <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-            {t("sync.live")}
-          </span>
-          {preview.map((hex, i) => (
-            <span
-              key={i}
-              className="size-5 rounded-full ring-1 ring-border transition-colors duration-100"
-              style={{ backgroundColor: hex, boxShadow: `0 0 12px ${hex}` }}
-            />
-          ))}
-        </div>
-      )}
+          {status.state === "starting" || status.state === "stopping" ? (
+            <Spinner />
+          ) : running ? (
+            <Square />
+          ) : (
+            <Play />
+          )}
+          {status.state === "starting"
+            ? t("sync.starting")
+            : status.state === "stopping"
+              ? t("sync.stopping")
+              : running
+                ? t("sync.stop")
+                : t("sync.start")}
+        </Button>
+
+        {/* Live preview */}
+        {status.state === "streaming" && levels && <LevelMeters levels={levels} />}
+        {status.state === "streaming" && audioLost && (
+          <p
+            className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground"
+            aria-live="polite"
+          >
+            <Spinner className="size-3" />
+            {mode === "screen" ? t("sync.screen_waiting") : t("sync.audio_waiting")}
+          </p>
+        )}
+        {status.state === "streaming" && preview.length > 0 && (
+          <div className="flex items-center justify-center gap-2" aria-label={t("sync.live")}>
+            <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              {t("sync.live")}
+            </span>
+            {preview.map((hex, i) => (
+              <span
+                key={i}
+                className="size-5 rounded-full ring-1 ring-border transition-colors duration-100"
+                style={{ backgroundColor: hex, boxShadow: `0 0 12px ${hex}` }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
@@ -405,6 +457,49 @@ function SyncControls({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+// --- Screen settings ---------------------------------------------------------
+
+function ScreenSettings({ disabled }: { disabled: boolean }) {
+  const { syncPrefs } = useAppState();
+  const { monitors } = useSyncState();
+
+  useEffect(() => {
+    void sync.refreshMonitors();
+  }, []);
+
+  const label = (m: MonitorInfo) =>
+    `${m.name} · ${t("sync.monitor_size", { width: m.width, height: m.height })}`;
+  // null in prefs = "the primary one"; show it selected as such.
+  const selected =
+    monitors?.find((m) => m.name === syncPrefs.screenMonitor)?.name ??
+    monitors?.find((m) => m.primary)?.name ??
+    monitors?.[0]?.name;
+
+  return (
+    <Field label={t("sync.monitor")}>
+      <Select
+        value={selected}
+        disabled={disabled || !monitors?.length}
+        onOpenChange={(open) => open && void sync.refreshMonitors()}
+        onValueChange={(screenMonitor) => void actions.setSyncPrefs({ screenMonitor })}
+      >
+        <SelectTrigger className={cn("w-full", SELECT_TEXT)} aria-label={t("sync.monitor")}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {monitors?.map((m) => (
+            <SelectItem key={m.name} value={m.name} className={SELECT_TEXT}>
+              {label(m)}
+              {m.primary && <span className={SELECT_NOTE}>{t("sync.monitor_primary")}</span>}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-muted-foreground">{t("sync.screen_hint")}</p>
+    </Field>
   );
 }
 
@@ -448,12 +543,8 @@ function MusicSettings({
                 <SelectItem key={source} value={source} title={name ?? undefined}>
                   {/* Label, and under it the device the desktop shows for it. */}
                   <span className="flex min-w-0 flex-col items-start text-left">
-                    <span className="text-xs font-medium">{t(`sync.source.${source}`)}</span>
-                    {name && (
-                      <span className="max-w-64 truncate text-[11px] text-muted-foreground">
-                        {name}
-                      </span>
-                    )}
+                    <span className={SELECT_TEXT}>{t(`sync.source.${source}`)}</span>
+                    {name && <span className={cn("max-w-64 truncate", SELECT_NOTE)}>{name}</span>}
                   </span>
                 </SelectItem>
               );
@@ -481,19 +572,6 @@ function MusicSettings({
           {t(`sync.style_hint.${syncPrefs.musicStyle}`)}
         </p>
       </Field>
-
-      <Label className="flex cursor-pointer items-start gap-2.5 font-normal">
-        <Checkbox
-          className="mt-0.5"
-          checked={syncPrefs.safeMode}
-          disabled={disabled}
-          onCheckedChange={(v) => void actions.setSyncPrefs({ safeMode: v === true })}
-        />
-        <span>
-          <span className="block text-sm">{t("sync.safe_mode")}</span>
-          <span className="block text-xs text-muted-foreground">{t("sync.safe_mode_hint")}</span>
-        </span>
-      </Label>
     </>
   );
 }

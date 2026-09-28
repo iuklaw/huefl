@@ -9,6 +9,7 @@ import type {
   AreaDraft,
   AudioDevices,
   AudioSource,
+  Monitor,
   MusicStyle,
   SyncOverview,
   SyncStatus,
@@ -16,12 +17,13 @@ import type {
 
 export type SyncRequest = {
   areaId: string;
-  mode: "ambient" | "music";
+  mode: "ambient" | "music" | "screen";
   palette: string[];
   intensity: number;
   restore: boolean;
   style?: MusicStyle;
   source?: AudioSource;
+  monitor?: string | null;
   safeMode: boolean;
   takeOver?: boolean;
 };
@@ -47,6 +49,8 @@ export type SyncState = {
   audioLost: boolean;
   /** Names for "Sound from"; null until asked or when there's no sound server. */
   audioDevices: AudioDevices | null;
+  /** Monitors for screen sync; null until asked or when capture is unavailable. */
+  monitors: Monitor[] | null;
 };
 
 let state: SyncState = {
@@ -58,6 +62,7 @@ let state: SyncState = {
   levels: null,
   audioLost: false,
   audioDevices: null,
+  monitors: null,
 };
 const listeners = new Set<() => void>();
 
@@ -91,6 +96,11 @@ export const sync = {
   async refreshAudioDevices(): Promise<void> {
     const audioDevices = await invoke<AudioDevices>("sync_audio_devices").catch(() => null);
     patch({ audioDevices });
+  },
+
+  async refreshMonitors(): Promise<void> {
+    const monitors = await invoke<Monitor[]>("sync_monitors").catch(() => null);
+    patch({ monitors });
   },
 
   async start(request: SyncRequest): Promise<void> {

@@ -41,6 +41,8 @@ pub struct Facts<'a> {
     pub busy_area: Option<&'a str>,
     /// Music mode's audio: the devices, or why there are none; None = not checked.
     pub audio: Option<&'a Result<AudioDevices, AudioProblem>>,
+    /// Screen mode: why it can't run here (None = it can); see screen::capture.
+    pub screen: Option<Option<&'a str>>,
 }
 
 /// CLIP v2 (which sync areas need) arrived with bridge API 1.48.
@@ -91,6 +93,13 @@ pub fn evaluate(facts: &Facts) -> Vec<Check> {
         None => {}
     }
 
+    // Screen only — never blocking either.
+    match facts.screen {
+        Some(None) => push("screen", Level::Ok, &[]),
+        Some(Some(reason)) => push("screen", Level::Warning, &[("reason", reason.into())]),
+        None => {}
+    }
+
     checks
 }
 
@@ -134,6 +143,7 @@ mod tests {
             areas: &areas,
             busy_area: None,
             audio: Some(&Ok(AudioDevices::default())),
+            screen: Some(None),
         });
         assert!(is_ready(&checks), "{checks:?}");
     }
@@ -148,6 +158,7 @@ mod tests {
             areas: &[],
             busy_area: None,
             audio: Some(&Err(AudioProblem::NoServer)),
+            screen: Some(Some("wayland")),
         });
         for id in ["bridge", "firmware", "client_key", "lights", "area"] {
             assert_eq!(level(&checks, id), Level::Blocking, "{id}");
@@ -156,6 +167,7 @@ mod tests {
         assert_eq!(level(&checks, "audio"), Level::Warning, "audio never blocks");
         let audio = checks.iter().find(|c| c.id == "audio").unwrap();
         assert_eq!(audio.params["reason"], "no_server");
+        assert_eq!(level(&checks, "screen"), Level::Warning, "screen never blocks");
     }
 
     #[test]
@@ -169,6 +181,7 @@ mod tests {
             areas: &areas,
             busy_area: Some("TV"),
             audio: None,
+            screen: None,
         });
         assert_eq!(level(&checks, "bridge_free"), Level::Warning);
         assert_eq!(checks.iter().find(|c| c.id == "bridge_free").unwrap().params["area"], "TV");

@@ -46,6 +46,7 @@ export const DEFAULT_SETTINGS: Settings = {
     musicStyle: "pulse",
     audioSource: "system",
     safeMode: true,
+    screenMonitor: null,
   },
 };
 

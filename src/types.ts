@@ -167,7 +167,7 @@ export type SyncArea = {
 export type SyncLight = { lightId: string; serviceId: string | null; renderer: boolean };
 
 export type ReadinessCheck = {
-  id: "bridge" | "firmware" | "client_key" | "lights" | "area" | "bridge_free" | "audio";
+  id: "bridge" | "firmware" | "client_key" | "lights" | "area" | "bridge_free" | "audio" | "screen";
   level: "ok" | "warning" | "blocking";
   params?: Record<string, string>;
 };
@@ -180,7 +180,12 @@ export type SyncOverview = {
   status: SyncStatus;
   /** False in builds without audio support: music mode is off. */
   audioSupported: boolean;
+  /** False on Wayland, without a display, or in builds without screen support. */
+  screenSupported: boolean;
 };
+
+/** A monitor for screen sync (X11 RandR). */
+export type Monitor = { name: string; width: number; height: number; primary: boolean };
 
 /** Default audio devices as the desktop names them (see sync/audio/devices.rs). */
 export type AudioDevices = {
@@ -206,6 +211,8 @@ export type SyncPrefs = {
   audioSource: AudioSource;
   /** Photosensitivity guard: at most three flashes per second. */
   safeMode: boolean;
+  /** Screen sync: RandR monitor name; null = the primary one. */
+  screenMonitor: string | null;
 };
 
 export type AreaDraft = {
