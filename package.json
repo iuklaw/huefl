@@ -1,0 +1,38 @@
+{
+  "name": "hue-tray",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "typecheck": "tsc",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@babel/runtime": "^8.0.5",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@tauri-apps/api": "^2",
+    "@uiw/color-convert": "^2.10.3",
+    "@uiw/react-color-wheel": "^2.10.3",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.4.0",
+    "lucide-react": "^1.48.0",
+    "radix-ui": "^1.6.7",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tw-animate-css": "^1.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/cli": "^2",
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "shadcn": "^4.21.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5",
+    "vite": "^8.3.1"
+  }
+}

@@ -1,0 +1,117 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --color-titlebar: var(--titlebar);
+    --color-titlebar-foreground: var(--titlebar-foreground);
+    --color-success: var(--success);
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', sans-serif;
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Palette inspired by Discord: layered greys, a strong titlebar, and Hue's
+   amber as the accent instead of blurple. Light values follow Discord's
+   light theme. Keys match shadcn/ui tokens so its components pick them up. */
+:root {
+    --radius: 0.625rem;
+    --background: #ffffff;
+    --foreground: #313338;
+    --card: #f2f3f5;
+    --card-foreground: #313338;
+    --popover: #ffffff;
+    --popover-foreground: #313338;
+    --primary: #e8a317;
+    --primary-foreground: #1a1305;
+    --secondary: #e3e5e8;
+    --secondary-foreground: #313338;
+    --muted: #ebedef;
+    --muted-foreground: #5c5e66;
+    --accent: #e3e5e8;
+    --accent-foreground: #313338;
+    --destructive: #da373c;
+    --border: #e1e2e4;
+    --input: #d4d7dc;
+    --ring: #e8a317;
+    --titlebar: #e3e5e8;
+    --titlebar-foreground: #5c5e66;
+    --success: #23a55a;
+}
+
+.dark {
+    --background: #313338;
+    --foreground: #dbdee1;
+    --card: #2b2d31;
+    --card-foreground: #f2f3f5;
+    --popover: #111214;
+    --popover-foreground: #dbdee1;
+    --primary: #f5b942;
+    --primary-foreground: #1a1305;
+    --secondary: #404249;
+    --secondary-foreground: #f2f3f5;
+    --muted: #1e1f22;
+    --muted-foreground: #949ba4;
+    --accent: #35373c;
+    --accent-foreground: #f2f3f5;
+    --destructive: #da373c;
+    --border: #3f4147;
+    --input: #1e1f22;
+    --ring: #f5b942;
+    --titlebar: #1e1f22;
+    --titlebar-foreground: #949ba4;
+    --success: #23a55a;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+    }
+  html {
+    @apply font-sans;
+    }
+  /* A desktop app, not a page: no rubber-band scrolling or text selection
+     outside inputs. Scrolling happens inside the views. */
+  html, body, #root {
+    @apply h-full overflow-hidden;
+    }
+  body {
+    @apply select-none antialiased;
+    }
+  input, textarea, [data-selectable] {
+    @apply select-text;
+    }
+}
