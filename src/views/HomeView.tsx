@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { actions } from "@/core/app";
+import { useSyncState } from "@/core/useSyncState";
 import { t } from "@/i18n";
 import type { AppState } from "@/types";
 
@@ -28,6 +29,8 @@ export function HomeView({ state, expanded, onExpandedChange, onOpenBridgeSettin
   const hasRooms = state.rooms.length > 0;
   const syncingRooms = new Set(state.syncing.rooms);
   const syncingLights = new Set(state.syncing.lights);
+  const { status: syncStatus } = useSyncState();
+  const streamingLights = new Set(syncStatus.state === "streaming" ? syncStatus.lightIds : []);
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
@@ -66,6 +69,7 @@ export function HomeView({ state, expanded, onExpandedChange, onOpenBridgeSettin
               scenes={state.library.scenes.filter((scene) => scene.roomId === room.id)}
               presetsExpanded={expanded.has(`presets:${room.id}`)}
               onPresetsExpandedChange={(open) => toggleExpanded(`presets:${room.id}`, open)}
+              syncLocked={room.lightIds.some((id) => streamingLights.has(id))}
             />
           ))}
 

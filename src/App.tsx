@@ -10,6 +10,8 @@ import { setTheme } from "@/lib/theme";
 import { HomeView } from "@/views/HomeView";
 import { OptionsView, type OptionsTab } from "@/views/OptionsView";
 import { PairingView } from "@/views/PairingView";
+import { SyncView } from "@/views/SyncView";
+import { MainTabs, type MainTab } from "@/components/MainTabs";
 
 type View = { name: "home" } | { name: "options"; tab: OptionsTab };
 
@@ -17,6 +19,8 @@ export function App() {
   const state = useAppState();
   const [view, setView] = useState<View>({ name: "home" });
   const [closeOpen, setCloseOpen] = useState(false);
+  /** Lights or Sync — the two main views under the title bar. */
+  const [mainTab, setMainTab] = useState<MainTab>("lights");
   /** Expanded rooms ("Lights") and lights (color) — kept here so it survives visiting Options.
    *  Room and light ids are UUIDs, so one set holds both. */
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
@@ -40,6 +44,11 @@ export function App() {
     const unlisten = [
       listen("close-requested", () => requestClose()),
       listen("open-options", () => setView({ name: "options", tab: "general" })),
+      // Tray "Start sync" with nothing to repeat yet: show the Sync tab.
+      listen("open-sync", () => {
+        setView({ name: "home" });
+        setMainTab("sync");
+      }),
     ];
     return () => unlisten.forEach((p) => void p.then((off) => off()));
   }, []);
@@ -60,12 +69,19 @@ export function App() {
       ) : state.status === "unconfigured" ? (
         <PairingView />
       ) : (
-        <HomeView
-          state={state}
-          expanded={expanded}
-          onExpandedChange={setExpanded}
-          onOpenBridgeSettings={() => openOptions("bridge")}
-        />
+        <>
+          <MainTabs value={mainTab} onChange={setMainTab} />
+          {mainTab === "sync" ? (
+            <SyncView onRepair={() => openOptions("bridge")} />
+          ) : (
+            <HomeView
+              state={state}
+              expanded={expanded}
+              onExpandedChange={setExpanded}
+              onOpenBridgeSettings={() => openOptions("bridge")}
+            />
+          )}
+        </>
       )}
 
       <AppFooter />
@@ -75,10 +91,15 @@ export function App() {
         onOpenChange={setCloseOpen}
         onChoose={async (choice, remember) => {
           setCloseOpen(false);
-          log.info("app", "window.close_choice", `Close dialog: ${choice}${remember ? " (remembered)" : ""}`, {
-            choice,
-            remember,
-          });
+          log.info(
+            "app",
+            "window.close_choice",
+            `Close dialog: ${choice}${remember ? " (remembered)" : ""}`,
+            {
+              choice,
+              remember,
+            },
+          );
           if (remember) await actions.setPreferences({ closeBehavior: choice });
           await (choice === "tray" ? actions.hideToTray() : actions.quit());
         }}

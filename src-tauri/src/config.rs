@@ -27,6 +27,9 @@ pub struct BridgeSettings {
     pub bridge_ip: Option<String>,
     pub application_key: Option<String>,
     pub cert_fingerprint: Option<String>,
+    /// PSK for the Entertainment (sync) stream; only present when pairing
+    /// asked for it (`generateclientkey`).
+    pub client_key: Option<String>,
 }
 
 pub fn read_bridge_settings() -> Option<BridgeSettings> {

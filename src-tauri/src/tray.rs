@@ -28,6 +28,7 @@ use crate::config;
 use crate::hue::{self, HueState};
 use crate::i18n::{t, t_with};
 use crate::logs;
+use crate::sync::manager::{self as sync, SyncManager, SyncRequest};
 use crate::window;
 use serde_json::json;
 
@@ -126,10 +127,24 @@ fn build_menu(app: &AppHandle, model: &TrayModel) -> tauri::Result<Menu<Wry>> {
     }
 
     menu.append(&PredefinedMenuItem::separator(app)?)?;
+    // Sync runs in Rust, so this works with the window hidden.
+    let syncing = app.state::<SyncManager>().is_active();
+    let sync_label = if syncing { t("tray.sync_stop") } else { t("tray.sync_start") };
+    menu.append(&MenuItem::with_id(app, "sync:toggle", sync_label, true, None::<&str>)?)?;
+    menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&MenuItem::with_id(app, "window:show", t("tray.show_window"), true, None::<&str>)?)?;
     menu.append(&MenuItem::with_id(app, "window:options", t("tray.options"), true, None::<&str>)?)?;
     menu.append(&MenuItem::with_id(app, "app:quit", t("tray.quit"), true, None::<&str>)?)?;
     Ok(menu)
+}
+
+/// Rebuilds the menu from the current model — e.g. when sync starts or stops.
+pub fn refresh(app: &AppHandle) {
+    let Some(state) = app.try_state::<TrayState>() else { return };
+    let model = state.0.lock().unwrap().clone();
+    if let Err(error) = rebuild(app, &model) {
+        logs::write(app, "error", "tray", "tray.menu_failed", format!("Menu rebuild failed: {error}"), None);
+    }
 }
 
 fn rebuild(app: &AppHandle, model: &TrayModel) -> tauri::Result<()> {
@@ -165,6 +180,7 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
     logs::write(app, "info", "tray", "tray.action", format!("Tray menu: {action}"), Some(json!({ "action": action })));
     match action {
         "window:show" => show_window(app),
+        "sync:toggle" => toggle_sync(app),
         "window:options" => {
             show_window(app);
             let _ = app.emit("open-options", ());
@@ -182,6 +198,24 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
                 }
             }
         }
+    }
+}
+
+/// Stop a running sync, or repeat the last one; with no previous sync there
+/// is nothing to repeat, so the Sync tab opens instead.
+fn toggle_sync(app: &AppHandle) {
+    let manager = app.state::<SyncManager>();
+    if manager.is_active() {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move { sync::stop(&app).await });
+    } else if let Some(request) = manager.last_request() {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = sync::start(&app, SyncRequest { take_over: false, ..request }).await;
+        });
+    } else {
+        show_window(app);
+        let _ = app.emit("open-sync", ());
     }
 }
 

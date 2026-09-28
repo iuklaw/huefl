@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
 import { actions } from "@/core/app";
+import { sync } from "@/core/sync";
 import { log } from "@/core/log";
 import { t, tPlural, type MessageKey } from "@/i18n";
 import { accentStyles, toCss } from "@/lib/color";
@@ -29,6 +30,9 @@ type Props = {
   /** Saved scenes of this room, newest first. */
   scenes: Scene[];
   presetsExpanded: boolean;
+  /** Some of the room's lights are streaming (sync) — the bridge ignores
+   *  regular commands to them, so the controls pause instead of pretending. */
+  syncLocked: boolean;
   onPresetsExpandedChange: (expanded: boolean) => void;
 };
 
@@ -43,6 +47,7 @@ export function RoomCard({
   scenes,
   presetsExpanded,
   onPresetsExpandedChange,
+  syncLocked,
 }: Props) {
   const [saving, setSaving] = useState(false);
   const tint = room.on && room.color ? room.color : null;
@@ -111,73 +116,86 @@ export function RoomCard({
         </div>
         <Switch
           checked={room.on}
+          disabled={syncLocked}
           onCheckedChange={(on) => void actions.setRoom({ id: room.id, on })}
           aria-label={t("room.toggle_label", { name: room.name })}
         />
       </div>
 
-      <LevelSlider
-        className="mt-3"
-        icon={<Sun />}
-        label={t("room.brightness_label", { name: room.name })}
-        value={Math.max(1, room.brightness)}
-        onChange={(brightness) => void actions.setRoom({ id: room.id, brightness, on: true })}
-        onCommit={(brightness) =>
-          log.info("command", "command.user", `${room.name}: brightness ${brightness}%`, {
-            origin: "ui",
-            room: { id: room.id, name: room.name },
-            brightness,
-          })
-        }
-      />
-
-      {lights.length > 0 && (
-        <Collapsible open={expanded} onOpenChange={onExpandedChange} className="mt-2">
-          <SectionTrigger open={expanded} count={lights.length}>
-            {t("room.lights_toggle")}
-          </SectionTrigger>
-          <CollapsibleContent className="overflow-hidden data-open:animate-collapsible-down data-closed:animate-collapsible-up">
-            <div className="mt-1 space-y-0.5">
-              {lights.map((light) => (
-                <LightRow
-                  key={light.id}
-                  light={light}
-                  syncing={syncing.lights.has(light.id)}
-                  expanded={expandedLights.has(light.id)}
-                  onExpandedChange={(open) => onLightExpandedChange(light.id, open)}
-                />
-              ))}
-            </div>
-            <Button
-              size="xs"
-              variant="ghost"
-              className="mt-1 text-muted-foreground"
-              onClick={() => setSaving(true)}
-            >
-              <BookmarkPlus />
-              {t("presets.save")}
-            </Button>
-          </CollapsibleContent>
-        </Collapsible>
+      {syncLocked && (
+        <div className="mt-3 flex items-center gap-2 rounded-md bg-primary/10 px-2.5 py-1.5 text-xs">
+          <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">{t("sync.room_locked")}</span>
+          <Button size="xs" variant="ghost" onClick={() => void sync.stop()}>
+            {t("sync.stop")}
+          </Button>
+        </div>
       )}
 
-      <Collapsible open={presetsExpanded} onOpenChange={onPresetsExpandedChange} className="mt-1">
-        <SectionTrigger open={presetsExpanded} count={scenes.length || undefined}>
-          {t("presets.title")}
-        </SectionTrigger>
-        <CollapsibleContent className="overflow-hidden data-open:animate-collapsible-down data-closed:animate-collapsible-up">
-          <RoomPresets room={room} scenes={scenes} active={active} accent={accent} />
-        </CollapsibleContent>
-      </Collapsible>
+      <div inert={syncLocked} className={cn("transition-opacity", syncLocked && "opacity-50")}>
+        <LevelSlider
+          className="mt-3"
+          icon={<Sun />}
+          label={t("room.brightness_label", { name: room.name })}
+          value={Math.max(1, room.brightness)}
+          onChange={(brightness) => void actions.setRoom({ id: room.id, brightness, on: true })}
+          onCommit={(brightness) =>
+            log.info("command", "command.user", `${room.name}: brightness ${brightness}%`, {
+              origin: "ui",
+              room: { id: room.id, name: room.name },
+              brightness,
+            })
+          }
+        />
 
-      <SavePresetDialog
-        open={saving}
-        onOpenChange={setSaving}
-        room={room}
-        lights={lights}
-        scenes={scenes}
-        onSaved={() => onPresetsExpandedChange(true)}
-      />
+        {lights.length > 0 && (
+          <Collapsible open={expanded} onOpenChange={onExpandedChange} className="mt-2">
+            <SectionTrigger open={expanded} count={lights.length}>
+              {t("room.lights_toggle")}
+            </SectionTrigger>
+            <CollapsibleContent className="overflow-hidden data-open:animate-collapsible-down data-closed:animate-collapsible-up">
+              <div className="mt-1 space-y-0.5">
+                {lights.map((light) => (
+                  <LightRow
+                    key={light.id}
+                    light={light}
+                    syncing={syncing.lights.has(light.id)}
+                    expanded={expandedLights.has(light.id)}
+                    onExpandedChange={(open) => onLightExpandedChange(light.id, open)}
+                  />
+                ))}
+              </div>
+              <Button
+                size="xs"
+                variant="ghost"
+                className="mt-1 text-muted-foreground"
+                onClick={() => setSaving(true)}
+              >
+                <BookmarkPlus />
+                {t("presets.save")}
+              </Button>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        <Collapsible open={presetsExpanded} onOpenChange={onPresetsExpandedChange} className="mt-1">
+          <SectionTrigger open={presetsExpanded} count={scenes.length || undefined}>
+            {t("presets.title")}
+          </SectionTrigger>
+          <CollapsibleContent className="overflow-hidden data-open:animate-collapsible-down data-closed:animate-collapsible-up">
+            <RoomPresets room={room} scenes={scenes} active={active} accent={accent} />
+          </CollapsibleContent>
+        </Collapsible>
+
+        <SavePresetDialog
+          open={saving}
+          onOpenChange={setSaving}
+          room={room}
+          lights={lights}
+          scenes={scenes}
+          onSaved={() => onPresetsExpandedChange(true)}
+        />
+      </div>
     </section>
   );
 }

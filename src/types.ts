@@ -106,6 +106,7 @@ export type AppState = {
   /** Rooms / lights with commands not yet confirmed by the bridge. */
   syncing: { rooms: string[]; lights: string[] };
   library: Library;
+  syncPrefs: SyncPrefs;
 };
 
 export type LightCommand = {
@@ -133,8 +134,67 @@ export type Actions = {
   deleteScene(sceneId: string): Promise<void>;
   applyScene(scene: Scene): void;
   applyPalette(roomId: string, palette: Palette): void;
+  setSyncPrefs(patch: Partial<SyncPrefs>): Promise<void>;
   setPreferences(patch: Partial<Preferences>): Promise<void>;
   minimize(): Promise<void>;
   hideToTray(): Promise<void>;
   quit(): Promise<void>;
+};
+
+// --- Light sync (mirrors src-tauri/src/sync) ---------------------------------
+
+export type SyncStatus =
+  | { state: "idle" }
+  | { state: "starting"; areaId: string }
+  | { state: "streaming"; areaId: string; lightIds: string[] }
+  | { state: "stopping" }
+  | { state: "error"; code: string; message: string };
+
+export type Position3 = { x: number; y: number; z: number };
+
+export type SyncArea = {
+  id: string;
+  name: string;
+  /** "screen" | "monitor" | "music" | "3dspace" | "other" */
+  kind: string;
+  /** "active" while someone streams to it */
+  status: string;
+  channels: { channelId: number; position: Position3 }[];
+  lightIds: string[];
+  members: { serviceId: string; position: Position3 }[];
+};
+
+export type SyncLight = { lightId: string; serviceId: string | null; renderer: boolean };
+
+export type ReadinessCheck = {
+  id: "bridge" | "firmware" | "client_key" | "lights" | "area" | "bridge_free";
+  level: "ok" | "warning" | "blocking";
+  params?: Record<string, string>;
+};
+
+export type SyncOverview = {
+  checks: ReadinessCheck[];
+  ready: boolean;
+  areas: SyncArea[];
+  lights: SyncLight[];
+  status: SyncStatus;
+};
+
+export type SyncMode = "ambient" | "music" | "screen";
+
+/** Persisted choices for the Sync tab. */
+export type SyncPrefs = {
+  areaId: string | null;
+  mode: SyncMode;
+  /** "palette:<id>" or "scene:<id>" */
+  colorsFrom: string;
+  /** 0 subtle … 3 extreme */
+  intensity: number;
+  restore: boolean;
+};
+
+export type AreaDraft = {
+  name: string;
+  kind: "music" | "screen" | "monitor";
+  members: { serviceId: string; position: Position3 }[];
 };

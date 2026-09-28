@@ -11,6 +11,7 @@ import {
   mirekToRgb,
   rgbToXy,
   toCss,
+  toHex,
   xyToMirek,
   xyToRgb,
   type Rgb,
@@ -187,4 +188,10 @@ export function findActivePreset(
   }
 
   return null;
+}
+
+/** A palette's colors as "#RRGGBB" — what the sync engine takes. */
+export function paletteHex(palette: Palette): string[] {
+  if (palette.mirek !== undefined) return [toHex(mirekToRgb(palette.mirek))];
+  return palette.colors ?? [];
 }

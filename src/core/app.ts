@@ -61,6 +61,7 @@ let state: AppState = {
   preferences: { closeBehavior: DEFAULT_SETTINGS.closeBehavior, theme: DEFAULT_SETTINGS.theme },
   syncing: { rooms: [], lights: [] },
   library: DEFAULT_SETTINGS.library,
+  syncPrefs: DEFAULT_SETTINGS.syncPrefs,
 };
 
 const listeners = new Set<() => void>();
@@ -211,6 +212,13 @@ export const actions: Actions = {
     );
     settings = { ...settings, ...patch };
     patchState({ preferences: { ...state.preferences, ...patch } });
+    await saveSettings(settings);
+  },
+
+  setSyncPrefs: async (patch) => {
+    const next = { ...state.syncPrefs, ...patch };
+    settings = { ...settings, syncPrefs: next };
+    patchState({ syncPrefs: next });
     await saveSettings(settings);
   },
 
@@ -621,6 +629,7 @@ export async function start(): Promise<void> {
       bridge: basicBridgeInfo(),
       preferences: { closeBehavior: settings.closeBehavior, theme: settings.theme },
       library: settings.library,
+      syncPrefs: settings.syncPrefs,
     });
 
     // Show the window only when there is no bridge yet — otherwise the app

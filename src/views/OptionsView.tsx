@@ -13,10 +13,11 @@ import { BridgeTab } from "./options/BridgeTab";
 import { GeneralTab } from "./options/GeneralTab";
 import { LightsTab } from "./options/LightsTab";
 import { LogsTab } from "./options/LogsTab";
+import { SyncTab } from "./options/SyncTab";
 
-export type OptionsTab = "general" | "bridge" | "lights" | "logs" | "about";
+export type OptionsTab = "general" | "bridge" | "lights" | "sync" | "logs" | "about";
 
-const TABS: OptionsTab[] = ["general", "bridge", "lights", "logs", "about"];
+const TABS: OptionsTab[] = ["general", "bridge", "lights", "sync", "logs", "about"];
 
 type Props = {
   state: AppState;
@@ -68,6 +69,9 @@ export function OptionsView({ state, tab, onTabChange, onBack }: Props) {
           </TabsContent>
           <TabsContent value="lights">
             <LightsTab state={state} />
+          </TabsContent>
+          <TabsContent value="sync">
+            <SyncTab prefs={state.syncPrefs} />
           </TabsContent>
           <TabsContent value="logs">
             <LogsTab />
