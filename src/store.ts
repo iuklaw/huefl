@@ -43,6 +43,9 @@ export const DEFAULT_SETTINGS: Settings = {
     colorsFrom: "palette:sunset",
     intensity: 1,
     restore: true,
+    musicStyle: "pulse",
+    audioSource: "system",
+    safeMode: true,
   },
 };
 
@@ -55,11 +58,17 @@ export async function loadSettings(): Promise<Settings> {
       ...DEFAULT_SETTINGS,
       ...saved,
       library: { ...DEFAULT_SETTINGS.library, ...saved.library },
-      syncPrefs: { ...DEFAULT_SETTINGS.syncPrefs, ...saved.syncPrefs },
+      syncPrefs: sanitizeSyncPrefs({ ...DEFAULT_SETTINGS.syncPrefs, ...saved.syncPrefs }),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
+}
+
+/** Values from older versions that no longer exist fall back to defaults. */
+function sanitizeSyncPrefs(prefs: SyncPrefs): SyncPrefs {
+  const styles: SyncPrefs["musicStyle"][] = ["pulse", "spectrum"];
+  return styles.includes(prefs.musicStyle) ? prefs : { ...prefs, musicStyle: "pulse" };
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {

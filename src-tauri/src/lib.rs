@@ -50,6 +50,7 @@ pub fn run() {
             sync::sync_start,
             sync::sync_stop,
             sync::sync_status,
+            sync::sync_audio_devices,
             sync::sync_create_area,
             sync::sync_update_area,
             sync::sync_delete_area,

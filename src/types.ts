@@ -167,7 +167,7 @@ export type SyncArea = {
 export type SyncLight = { lightId: string; serviceId: string | null; renderer: boolean };
 
 export type ReadinessCheck = {
-  id: "bridge" | "firmware" | "client_key" | "lights" | "area" | "bridge_free";
+  id: "bridge" | "firmware" | "client_key" | "lights" | "area" | "bridge_free" | "audio";
   level: "ok" | "warning" | "blocking";
   params?: Record<string, string>;
 };
@@ -178,9 +178,20 @@ export type SyncOverview = {
   areas: SyncArea[];
   lights: SyncLight[];
   status: SyncStatus;
+  /** False in builds without audio support: music mode is off. */
+  audioSupported: boolean;
+};
+
+/** Default audio devices as the desktop names them (see sync/audio/devices.rs). */
+export type AudioDevices = {
+  system: string | null;
+  microphone: string | null;
+  microphoneBluetooth: boolean;
 };
 
 export type SyncMode = "ambient" | "music" | "screen";
+export type MusicStyle = "pulse" | "spectrum";
+export type AudioSource = "system" | "microphone";
 
 /** Persisted choices for the Sync tab. */
 export type SyncPrefs = {
@@ -191,6 +202,10 @@ export type SyncPrefs = {
   /** 0 subtle … 3 extreme */
   intensity: number;
   restore: boolean;
+  musicStyle: MusicStyle;
+  audioSource: AudioSource;
+  /** Photosensitivity guard: at most three flashes per second. */
+  safeMode: boolean;
 };
 
 export type AreaDraft = {

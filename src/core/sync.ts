@@ -5,15 +5,32 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { log } from "@/core/log";
-import type { AreaDraft, SyncOverview, SyncStatus } from "@/types";
+import type {
+  AreaDraft,
+  AudioDevices,
+  AudioSource,
+  MusicStyle,
+  SyncOverview,
+  SyncStatus,
+} from "@/types";
 
 export type SyncRequest = {
   areaId: string;
-  mode: "ambient";
+  mode: "ambient" | "music";
   palette: string[];
   intensity: number;
   restore: boolean;
+  style?: MusicStyle;
+  source?: AudioSource;
+  safeMode: boolean;
   takeOver?: boolean;
+};
+
+/** One "sync-preview" event (~12 per second while streaming). */
+type Preview = {
+  colors: string[];
+  levels: [number, number, number, number] | null;
+  audioLost: boolean;
 };
 
 export type SyncState = {
@@ -24,6 +41,12 @@ export type SyncState = {
   error: string | null;
   /** Current channel colors while streaming, "#RRGGBB" in channel order. */
   preview: string[];
+  /** Music: energy, bass, mid, treble (0..1). */
+  levels: [number, number, number, number] | null;
+  /** Music: the audio input is gone for now (sound server restarting, …). */
+  audioLost: boolean;
+  /** Names for "Sound from"; null until asked or when there's no sound server. */
+  audioDevices: AudioDevices | null;
 };
 
 let state: SyncState = {
@@ -32,6 +55,9 @@ let state: SyncState = {
   loading: false,
   error: null,
   preview: [],
+  levels: null,
+  audioLost: false,
+  audioDevices: null,
 };
 const listeners = new Set<() => void>();
 
@@ -58,6 +84,13 @@ export const sync = {
     } catch (error) {
       patch({ loading: false, error: String(error) });
     }
+  },
+
+  /** Cheap (no bridge): called on opening the tab and the "Sound from" list,
+   *  so a device switched in the system shows up. */
+  async refreshAudioDevices(): Promise<void> {
+    const audioDevices = await invoke<AudioDevices>("sync_audio_devices").catch(() => null);
+    patch({ audioDevices });
   },
 
   async start(request: SyncRequest): Promise<void> {
@@ -87,12 +120,20 @@ export const sync = {
 };
 
 void listen<SyncStatus>("sync-status", ({ payload }) => {
-  patch({ status: payload, preview: payload.state === "streaming" ? state.preview : [] });
+  const streaming = payload.state === "streaming";
+  patch({
+    status: payload,
+    preview: streaming ? state.preview : [],
+    levels: streaming ? state.levels : null,
+    audioLost: streaming && state.audioLost,
+  });
   // Area "active" flags change with the stream; keep the overview honest.
   if (payload.state === "idle" || payload.state === "streaming") void sync.refresh();
 });
 
-void listen<string[]>("sync-preview", ({ payload }) => patch({ preview: payload }));
+void listen<Preview>("sync-preview", ({ payload }) =>
+  patch({ preview: payload.colors, levels: payload.levels, audioLost: payload.audioLost }),
+);
 
 void invoke<SyncStatus>("sync_status")
   .then((status) => patch({ status }))

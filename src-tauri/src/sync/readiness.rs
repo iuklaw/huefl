@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+use super::audio::devices::{AudioDevices, AudioProblem};
 use super::entertainment::api::Area;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -38,6 +39,8 @@ pub struct Facts<'a> {
     pub areas: &'a [Area],
     /// An area someone else is streaming to right now.
     pub busy_area: Option<&'a str>,
+    /// Music mode's audio: the devices, or why there are none; None = not checked.
+    pub audio: Option<&'a Result<AudioDevices, AudioProblem>>,
 }
 
 /// CLIP v2 (which sync areas need) arrived with bridge API 1.48.
@@ -78,6 +81,14 @@ pub fn evaluate(facts: &Facts) -> Vec<Check> {
         // Not blocking: the user can take over.
         Some(name) => push("bridge_free", Level::Warning, &[("area", name.into())]),
         None => push("bridge_free", Level::Ok, &[]),
+    }
+
+    // Music only — ambient sync works without audio, so never blocking.
+    match facts.audio {
+        Some(Ok(devices)) => push("audio", Level::Ok, &[("device", devices.system.clone().unwrap_or_default())]),
+        Some(Err(AudioProblem::NoServer)) => push("audio", Level::Warning, &[("reason", "no_server".into())]),
+        Some(Err(AudioProblem::NoOutput)) => push("audio", Level::Warning, &[("reason", "no_output".into())]),
+        None => {}
     }
 
     checks
@@ -122,6 +133,7 @@ mod tests {
             stream_lights: 3,
             areas: &areas,
             busy_area: None,
+            audio: Some(&Ok(AudioDevices::default())),
         });
         assert!(is_ready(&checks), "{checks:?}");
     }
@@ -135,11 +147,15 @@ mod tests {
             stream_lights: 0,
             areas: &[],
             busy_area: None,
+            audio: Some(&Err(AudioProblem::NoServer)),
         });
         for id in ["bridge", "firmware", "client_key", "lights", "area"] {
             assert_eq!(level(&checks, id), Level::Blocking, "{id}");
         }
         assert!(!is_ready(&checks));
+        assert_eq!(level(&checks, "audio"), Level::Warning, "audio never blocks");
+        let audio = checks.iter().find(|c| c.id == "audio").unwrap();
+        assert_eq!(audio.params["reason"], "no_server");
     }
 
     #[test]
@@ -152,9 +168,10 @@ mod tests {
             stream_lights: 3,
             areas: &areas,
             busy_area: Some("TV"),
+            audio: None,
         });
         assert_eq!(level(&checks, "bridge_free"), Level::Warning);
-        assert_eq!(checks.last().unwrap().params["area"], "TV");
+        assert_eq!(checks.iter().find(|c| c.id == "bridge_free").unwrap().params["area"], "TV");
         assert!(is_ready(&checks));
     }
 }

@@ -16,7 +16,9 @@ use serde_json::{json, Value};
 use tauri::async_runtime::JoinHandle;
 use tauri::{AppHandle, Emitter, Manager};
 
-use super::effects::{self, Effect, PaletteCycle};
+use super::audio::analyzer::Features;
+use super::audio::capture::{AudioEvent, AudioInput, AudioSource};
+use super::effects::{self, Effect, MusicEffect, MusicStyle, PaletteCycle};
 use super::entertainment::api::{Area, BridgeAccess};
 use super::entertainment::dtls::DtlsStream;
 use super::entertainment::protocol::{encode, ChannelColor, ColorSpace};
@@ -25,6 +27,18 @@ use crate::logs;
 
 const FRAME: Duration = Duration::from_millis(20); // 50 Hz, what the bridge expects
 const PREVIEW_EVERY: u32 = 4; // ~12 Hz of preview events for the UI
+const STATS_EVERY: Duration = Duration::from_secs(10);
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Preview {
+    /// Channel colors, "#RRGGBB", in channel order.
+    colors: Vec<String>,
+    /// Music only: energy, bass, mid, treble.
+    levels: Option<[f32; 4]>,
+    /// Music only: audio input gone for now (e.g. sound server restarting).
+    audio_lost: bool,
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(tag = "state", rename_all = "lowercase", rename_all_fields = "camelCase")]
@@ -41,8 +55,17 @@ pub enum SyncStatus {
 #[serde(rename_all = "camelCase")]
 pub struct SyncRequest {
     pub area_id: String,
-    /// "test" for now; "music" and "screen" come with their stages.
+    /// "ambient" | "music" ("screen" comes with stage 3)
     pub mode: String,
+    /// Music: "pulse" | "spectrum" | "beat"
+    #[serde(default)]
+    pub style: Option<String>,
+    /// Music: "system" | "microphone"
+    #[serde(default)]
+    pub source: Option<String>,
+    /// Photosensitivity guard: at most three flashes per second.
+    #[serde(default = "default_true")]
+    pub safe_mode: bool,
     /// "#RRGGBB" colors
     pub palette: Vec<String>,
     /// 0 subtle … 3 extreme
@@ -52,6 +75,10 @@ pub struct SyncRequest {
     /// Stop another app's stream on this bridge first.
     #[serde(default)]
     pub take_over: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 struct Session {
@@ -160,15 +187,54 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
         Some(json!({ "area": area.name, "mode": request.mode, "channels": area.channels.len(), "intensity": request.intensity })),
     );
 
-    let effect: Box<dyn Effect> = Box::new(PaletteCycle::new(
-        request.palette.iter().filter_map(|h| effects::parse_hex(h)).collect(),
-        request.intensity,
-    ));
+    let palette: Vec<_> = request.palette.iter().filter_map(|h| effects::parse_hex(h)).collect();
+    // Audio is captured for the session's lifetime; dropping it stops capture.
+    let mut audio: Option<AudioSource> = None;
+    let effect: Box<dyn Effect> = match request.mode.as_str() {
+        "music" => {
+            let features = Arc::new(Mutex::new(Features::default()));
+            let lost = Arc::new(AtomicBool::new(false));
+            let log_app = app.clone();
+            let on_event = Box::new(move |event: AudioEvent| {
+                let (level, code, message) = match event {
+                    AudioEvent::Opened(source) => ("info", "sync.audio_opened", format!("Recording from {source}")),
+                    AudioEvent::Lost(why) => ("warn", "sync.audio_lost", format!("Audio input lost: {why}")),
+                    AudioEvent::Restored => ("info", "sync.audio_restored", "Audio input is back".to_string()),
+                    AudioEvent::Switched(label) => (
+                        "info",
+                        "sync.audio_switched",
+                        format!("Audio follows the new default device: {}", label.unwrap_or_default()),
+                    ),
+                };
+                logs::write(&log_app, level, "app", code, message, None);
+            });
+            match AudioSource::start(AudioInput::parse(request.source.as_deref()), features.clone(), lost.clone(), on_event) {
+                Ok(source) => audio = Some(source),
+                Err(message) => {
+                    let _ = access.set_streaming(&hue, &area.id, false).await;
+                    return fail(app, "audio", message);
+                }
+            }
+            Box::new(MusicEffect::new(
+                MusicStyle::parse(request.style.as_deref()),
+                palette,
+                request.intensity,
+                request.safe_mode,
+                features,
+                lost,
+            ))
+        }
+        _ => Box::new(PaletteCycle::new(palette, request.intensity)),
+    };
 
     let stop = Arc::new(AtomicBool::new(false));
     let thread = std::thread::Builder::new().name("hue-sync-stream".into()).spawn({
         let (app, stop, area, ip, key) = (app.clone(), stop.clone(), area.clone(), access.ip.clone(), access.key.clone());
-        move || stream_loop(&app, &stop, &area, &ip, &key, &client_key, effect)
+        move || {
+            let result = stream_loop(&app, &stop, &area, &ip, &key, &client_key, effect);
+            drop(audio); // capture ends with the stream
+            result
+        }
     });
     let thread = match thread {
         Ok(thread) => thread,
@@ -232,6 +298,7 @@ async fn finish(
     match result {
         Err(message) if !stopped_by_us => {
             let code = if message.contains("DTLS") { "network" } else { "stream" };
+            // (audio failures are reported before the stream starts)
             let _ = fail(app, code, message);
         }
         result => {
@@ -265,6 +332,8 @@ fn stream_loop(
     set_status(app, SyncStatus::Streaming { area_id: area.id.clone(), light_ids: area.light_ids.clone() });
 
     let mut sent: u32 = 0;
+    let mut stats_since = Instant::now();
+    let mut stats_sent: u32 = 0;
     let mut last = Instant::now();
     let mut next_frame = Instant::now();
     while !stop.load(Ordering::SeqCst) {
@@ -283,8 +352,27 @@ fn stream_loop(
         sent = sent.wrapping_add(1);
 
         if sent.is_multiple_of(PREVIEW_EVERY) {
-            let preview: Vec<String> = colors.iter().map(|c| to_hex(*c)).collect();
-            let _ = app.emit("sync-preview", preview);
+            let _ = app.emit(
+                "sync-preview",
+                Preview {
+                    colors: colors.iter().map(|c| to_hex(*c)).collect(),
+                    levels: effect.levels(),
+                    audio_lost: effect.input_lost(),
+                },
+            );
+        }
+        if stats_since.elapsed() >= STATS_EVERY {
+            let seconds = stats_since.elapsed().as_secs_f32();
+            logs::write(
+                app,
+                "debug",
+                "app",
+                "sync.stats",
+                format!("{:.0} packets/s", sent.wrapping_sub(stats_sent) as f32 / seconds),
+                Some(json!({ "packetsPerSecond": sent.wrapping_sub(stats_sent) as f32 / seconds, "limitedFlashes": effect.limited_flashes() })),
+            );
+            stats_since = Instant::now();
+            stats_sent = sent;
         }
 
         next_frame += FRAME;

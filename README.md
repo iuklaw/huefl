@@ -10,7 +10,8 @@ Dziala na Ubuntu 22.04+ (i innych dystrybucjach z webkit2gtk-4.1). Do budowania:
 
 ```bash
 sudo apt install build-essential curl wget file pkg-config libssl-dev \
-  libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+  libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
+  libpulse-dev   # synchronizacja z muzyka (feature sync-audio)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh   # Rust (stable)
 ```
 
@@ -70,6 +71,10 @@ src-tauri/src/
   config.rs            odczyt/zapis config.json wg XDG
   tray.rs              ikona i menu w zasobniku, akcje menu obslugiwane natywnie
   i18n.rs              tlumaczenia po stronie Rust (ten sam en.json)
+  sync/                synchronizacja: entertainment/ (REST, DTLS, protokol),
+                       audio/ (przechwytywanie, analiza), effects, smoothing,
+                       readiness (checklista), manager (sesja, sprzatanie)
+  window.rs            chowanie/pokazywanie okna z zachowaniem pozycji
   lib.rs               start aplikacji, rejestracja komend, obsluga zamykania okna
 ```
 
@@ -134,6 +139,44 @@ laczenie z mostkiem (czas, liczba pokoi/lamp, firmware), bledy HTTP z trescia
 odpowiedzi, stan strumienia zdarzen, akcje uzytkownika (przelaczniki; suwaki
 raz, po puszczeniu), wyslane komendy z czasem (poziom debug), akcje traya,
 parowanie oraz nieprzechwycone bledy JS ze stack trace.
+
+## Synchronizacja swiatel (Sync)
+
+Zakladka **Sync** strumieniuje kolory do lamp w czasie rzeczywistym przez Hue
+Entertainment API: szyfrowany strumien DTLS 1.2 (PSK) na UDP 2100, ~50
+pakietow/s, format HueStream v2. Zwykle komendy REST sa na to za wolne (~10/s).
+
+Wymagania (aplikacja sprawdza je sama i pokazuje jako checkliste): mostek v2,
+klucz strumienia (`clientKey`, powstaje przy parowaniu), lampy kolorowe
+obslugujace strumien i **obszar Entertainment** (sync area). Obszar mozna
+utworzyc w aplikacji (kreator: przeznaczenie, lampy, rozmieszczenie) albo w
+aplikacji Philips Hue — to te same zasoby mostka.
+
+Tryby:
+- **Ambient** — paleta plynie po lampach od lewej do prawej.
+- **Music** — dzwiek systemowy (monitor domyslnego wyjscia; jego dokladna nazwe
+  podaje serwer — nie `@DEFAULT_MONITOR@`, ktore na pipewire-pulse 0.3.48
+  wskazywalo mikrofon) albo mikrofon przez PulseAudio/PipeWire; FFT, pasma bas/srodek/gora, wykrywanie
+  beatu. Style: Pulse, Spectrum. Tryb bezpieczny (domyslnie wlaczony)
+  ogranicza blyski do 3/s (WCAG 2.3.1). Wymaga PulseAudio albo PipeWire z
+  pipewire-pulse (samo ALSA / czysty JACK nie wystarcza — aplikacja to wykrywa
+  i mowi wprost). Zmiana wyjscia w trakcie (np. na sluchawki) i restart serwera
+  dzwieku sa obslugiwane: przechwytywanie przelacza sie / wraca samo.
+- **Screen** — w przygotowaniu.
+
+Caly silnik dziala w Rust (`src-tauri/src/sync/`), bo JS w schowanym oknie jest
+usypiany, a synchronizacja ma dzialac z traya. Po zatrzymaniu lampy wracaja do
+stanu sprzed startu (Opcje → Sync). W czasie strumienia mostek ignoruje zwykle
+komendy, wiec kontrolki pokoju sa wtedy zablokowane.
+
+Testy na zywo (zmieniaja swiatla / nagrywaja dzwiek, dlatego `--ignored`):
+
+```bash
+cd src-tauri
+cargo test --lib live_stream_rainbow -- --ignored --nocapture   # 5 s teczy
+cargo test --lib live_overview -- --ignored --nocapture         # checklista
+cargo test --lib live_capture -- --ignored --nocapture          # 2 s dzwieku
+```
 
 ## Autostart
 

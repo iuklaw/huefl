@@ -49,7 +49,9 @@ import { toHex } from "@/lib/color";
 import { POPULAR_PALETTES } from "@/lib/palettes";
 import { paletteBackground, paletteHex, scenePreview } from "@/lib/presets";
 import { cn } from "@/lib/utils";
-import type { SyncArea, SyncMode } from "@/types";
+import type { AudioSource, MusicStyle, ReadinessCheck, SyncArea, SyncMode } from "@/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 type Props = { onRepair: () => void };
 
@@ -59,6 +61,7 @@ export function SyncView({ onRepair }: Props) {
 
   useEffect(() => {
     void sync.refresh();
+    void sync.refreshAudioDevices();
   }, []);
 
   const wizardDialog = overview && (
@@ -125,7 +128,7 @@ export function SyncView({ onRepair }: Props) {
 
 const MODES: { mode: SyncMode; icon: typeof Music; available: boolean }[] = [
   { mode: "ambient", icon: Sparkles, available: true },
-  { mode: "music", icon: Music, available: false },
+  { mode: "music", icon: Music, available: true },
   { mode: "screen", icon: Monitor, available: false },
 ];
 
@@ -138,7 +141,8 @@ function SyncControls({
   onNewArea: () => void;
   onEditArea: (area: SyncArea) => void;
 }) {
-  const { status, preview } = useSyncState();
+  const { status, preview, levels, overview, audioLost } = useSyncState();
+  const audioCheck = overview?.checks.find((c) => c.id === "audio");
   const { syncPrefs, library } = useAppState();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -174,14 +178,20 @@ function SyncControls({
   );
   const source = colorSources.find((c) => c.id === syncPrefs.colorsFrom) ?? colorSources[0]!;
 
+  // Screen mode is not available yet; a stored choice falls back to ambient.
+  const mode = syncPrefs.mode === "music" ? "music" : "ambient";
+
   const start = (takeOver = false) => {
     if (!area) return;
     void sync.start({
       areaId: area.id,
-      mode: "ambient",
+      mode,
       palette: source.colors,
       intensity: syncPrefs.intensity,
       restore: syncPrefs.restore,
+      style: syncPrefs.musicStyle,
+      source: syncPrefs.audioSource,
+      safeMode: syncPrefs.safeMode,
       takeOver,
     });
   };
@@ -231,30 +241,40 @@ function SyncControls({
       {/* Mode */}
       <Field label={t("sync.mode.label")}>
         <div className="grid grid-cols-3 gap-1.5">
-          {MODES.map(({ mode, icon: Icon, available }) => (
-            <button
-              key={mode}
-              type="button"
-              disabled={!available || busy}
-              onClick={() => void actions.setSyncPrefs({ mode })}
-              className={cn(
-                "flex flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-xs transition-colors outline-none",
-                "focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed",
-                syncPrefs.mode === mode && available
-                  ? "border-primary bg-primary/10"
-                  : "border-border hover:bg-accent disabled:opacity-50 disabled:hover:bg-transparent",
-              )}
-            >
-              <Icon className="size-4" aria-hidden />
-              <span className="font-medium">{t(`sync.mode.${mode}` as MessageKey)}</span>
-              {!available && (
-                <span className="text-[10px] text-muted-foreground">{t("sync.coming_soon")}</span>
-              )}
-            </button>
-          ))}
+          {MODES.map(({ mode: m, icon: Icon, available: planned }) => {
+            const noAudio = m === "music" && overview?.audioSupported === false;
+            const available = planned && !noAudio;
+            return (
+              <button
+                key={m}
+                type="button"
+                disabled={!available || busy}
+                onClick={() => void actions.setSyncPrefs({ mode: m })}
+                className={cn(
+                  // Grid rows stretch every tile to the tallest one; keep the
+                  // content in the middle of each.
+                  "flex flex-col items-center justify-center gap-1 rounded-lg border px-2 py-2.5 text-center text-xs transition-colors outline-none",
+                  "focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed",
+                  mode === m && available
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:bg-accent disabled:opacity-50 disabled:hover:bg-transparent",
+                )}
+              >
+                <Icon className="size-4" aria-hidden />
+                <span className="font-medium">{t(`sync.mode.${m}` as MessageKey)}</span>
+                {!available && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {noAudio ? t("sync.mode_unavailable") : t("sync.coming_soon")}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
-        <p className="text-xs text-muted-foreground">{t("sync.mode_hint.ambient")}</p>
+        <p className="text-xs text-muted-foreground">{t(`sync.mode_hint.${mode}`)}</p>
       </Field>
+
+      {mode === "music" && <MusicSettings disabled={busy} audioCheck={audioCheck} />}
 
       {/* Colors */}
       <Field label={t("sync.colors")}>
@@ -292,26 +312,15 @@ function SyncControls({
 
       {/* Intensity */}
       <Field label={t("sync.intensity")}>
-        <div className="grid grid-cols-4 gap-1 rounded-lg bg-muted p-1" role="radiogroup">
-          {[0, 1, 2, 3].map((level) => (
-            <button
-              key={level}
-              type="button"
-              role="radio"
-              aria-checked={syncPrefs.intensity === level}
-              disabled={busy}
-              onClick={() => void actions.setSyncPrefs({ intensity: level })}
-              className={cn(
-                "rounded-md py-1 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
-                syncPrefs.intensity === level
-                  ? "bg-background font-medium shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t(`sync.intensity.${level}` as MessageKey)}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          options={[0, 1, 2, 3].map((level) => ({
+            value: String(level),
+            label: t(`sync.intensity.${level}` as MessageKey),
+          }))}
+          value={String(syncPrefs.intensity)}
+          disabled={busy}
+          onChange={(level) => void actions.setSyncPrefs({ intensity: Number(level) })}
+        />
       </Field>
 
       {/* Error */}
@@ -354,6 +363,16 @@ function SyncControls({
       </Button>
 
       {/* Live preview */}
+      {status.state === "streaming" && levels && <LevelMeters levels={levels} />}
+      {status.state === "streaming" && audioLost && (
+        <p
+          className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground"
+          aria-live="polite"
+        >
+          <Spinner className="size-3" />
+          {t("sync.audio_waiting")}
+        </p>
+      )}
       {status.state === "streaming" && preview.length > 0 && (
         <div className="flex items-center justify-center gap-2" aria-label={t("sync.live")}>
           <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
@@ -385,6 +404,159 @@ function SyncControls({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+// --- Music settings --------------------------------------------------------------
+
+const STYLES: MusicStyle[] = ["pulse", "spectrum"];
+const SOURCES: AudioSource[] = ["system", "microphone"];
+
+function MusicSettings({
+  disabled,
+  audioCheck,
+}: {
+  disabled: boolean;
+  audioCheck?: ReadinessCheck;
+}) {
+  const { syncPrefs } = useAppState();
+  const { audioDevices } = useSyncState();
+  const deviceName = (source: AudioSource) =>
+    source === "system" ? audioDevices?.system : audioDevices?.microphone;
+  const reason = audioCheck?.level === "warning" ? audioCheck.params?.reason : undefined;
+
+  return (
+    <>
+      <Field label={t("sync.source")}>
+        <Select
+          value={syncPrefs.audioSource}
+          disabled={disabled}
+          // Re-read on open: the user may have switched devices in the system.
+          onOpenChange={(open) => open && void sync.refreshAudioDevices()}
+          onValueChange={(audioSource) =>
+            void actions.setSyncPrefs({ audioSource: audioSource as AudioSource })
+          }
+        >
+          <SelectTrigger className="h-auto min-h-[37px] w-full py-2" aria-label={t("sync.source")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SOURCES.map((source) => {
+              const name = deviceName(source);
+              return (
+                <SelectItem key={source} value={source} title={name ?? undefined}>
+                  {/* Label, and under it the device the desktop shows for it. */}
+                  <span className="flex min-w-0 flex-col items-start text-left">
+                    <span className="text-xs font-medium">{t(`sync.source.${source}`)}</span>
+                    {name && (
+                      <span className="max-w-64 truncate text-[11px] text-muted-foreground">
+                        {name}
+                      </span>
+                    )}
+                  </span>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+        {reason && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            {t(`sync.check.audio.${reason}` as MessageKey)}
+          </p>
+        )}
+        {syncPrefs.audioSource === "microphone" && audioDevices?.microphoneBluetooth && (
+          <p className="text-xs text-muted-foreground">{t("sync.bluetooth_mic_hint")}</p>
+        )}
+      </Field>
+
+      <Field label={t("sync.style")}>
+        <Segmented
+          options={STYLES.map((style) => ({ value: style, label: t(`sync.style.${style}`) }))}
+          value={syncPrefs.musicStyle}
+          disabled={disabled}
+          onChange={(musicStyle) => void actions.setSyncPrefs({ musicStyle })}
+        />
+        <p className="text-xs text-muted-foreground">
+          {t(`sync.style_hint.${syncPrefs.musicStyle}`)}
+        </p>
+      </Field>
+
+      <Label className="flex cursor-pointer items-start gap-2.5 font-normal">
+        <Checkbox
+          className="mt-0.5"
+          checked={syncPrefs.safeMode}
+          disabled={disabled}
+          onCheckedChange={(v) => void actions.setSyncPrefs({ safeMode: v === true })}
+        />
+        <span>
+          <span className="block text-sm">{t("sync.safe_mode")}</span>
+          <span className="block text-xs text-muted-foreground">{t("sync.safe_mode_hint")}</span>
+        </span>
+      </Label>
+    </>
+  );
+}
+
+/** Bass / mid / treble bars while music sync runs. */
+function LevelMeters({ levels }: { levels: [number, number, number, number] }) {
+  const bands = [
+    { label: t("sync.levels.bass"), value: levels[1] },
+    { label: t("sync.levels.mid"), value: levels[2] },
+    { label: t("sync.levels.treble"), value: levels[3] },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {bands.map((band) => (
+        <div key={band.label} className="space-y-1">
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-75"
+              style={{ width: `${Math.round(band.value * 100)}%` }}
+            />
+          </div>
+          <p className="text-center text-[10px] text-muted-foreground">{band.label}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Segmented<T extends string>({
+  options,
+  value,
+  disabled,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  disabled?: boolean;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div
+      className="grid gap-1 rounded-lg bg-muted p-1"
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+      role="radiogroup"
+    >
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="radio"
+          aria-checked={value === option.value}
+          disabled={disabled}
+          onClick={() => onChange(option.value)}
+          className={cn(
+            "rounded-md py-1 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
+            value === option.value
+              ? "bg-background font-medium shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }

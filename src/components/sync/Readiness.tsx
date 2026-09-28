@@ -13,6 +13,14 @@ type Props = {
   onRepair: () => void;
 };
 
+/** A check with a `reason` has one message per reason (e.g. audio: no_server). */
+function messageKey(check: ReadinessCheck): MessageKey {
+  const reason = check.params?.reason;
+  return (
+    reason ? `sync.check.${check.id}.${reason}` : `sync.check.${check.id}.${check.level}`
+  ) as MessageKey;
+}
+
 export function Readiness({ checks, onCreateArea, onRepair }: Props) {
   return (
     <ul className="space-y-1">
@@ -30,9 +38,7 @@ export function Readiness({ checks, onCreateArea, onRepair }: Props) {
               )}
               aria-hidden
             />
-            <p className="min-w-0 flex-1 text-xs">
-              {t(`sync.check.${check.id}.${check.level}` as MessageKey, check.params)}
-            </p>
+            <p className="min-w-0 flex-1 text-xs">{t(messageKey(check), check.params)}</p>
             {check.id === "area" && check.level === "blocking" && (
               <Button size="xs" onClick={onCreateArea}>
                 {t("sync.area.create")}

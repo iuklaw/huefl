@@ -9,10 +9,12 @@
 //   effects.rs      what the lights show
 //   manager.rs      one session at a time: state machine + cleanup
 
+pub mod audio;
 pub mod effects;
 pub mod entertainment;
 pub mod manager;
 pub mod readiness;
+pub mod smoothing;
 
 use serde::Serialize;
 use serde_json::json;
@@ -20,6 +22,7 @@ use tauri::{AppHandle, State};
 
 use crate::hue::HueState;
 use crate::logs;
+use audio::devices::{AudioDevices, AudioProblem};
 use entertainment::api::{Area, AreaDraft, SyncLight};
 use manager::{SyncManager, SyncRequest, SyncStatus};
 use readiness::{Check, Facts};
@@ -32,6 +35,8 @@ pub struct SyncOverview {
     areas: Vec<Area>,
     lights: Vec<SyncLight>,
     status: SyncStatus,
+    /// False in builds without the `sync-audio` feature: music mode is off.
+    audio_supported: bool,
 }
 
 /// Everything the Sync tab needs in one call: checklist, areas, lights, status.
@@ -49,6 +54,7 @@ pub async fn sync_overview(
         areas.clear();
     }
 
+    let audio = audio::devices::default_devices();
     let status = manager.status();
     let ours = match &status {
         SyncStatus::Starting { area_id } | SyncStatus::Streaming { area_id, .. } => Some(area_id.as_str()),
@@ -66,8 +72,24 @@ pub async fn sync_overview(
         stream_lights: lights.iter().filter(|l| l.renderer).count(),
         areas: &areas,
         busy_area: busy_area.as_deref(),
+        audio: Some(&audio),
     });
-    Ok(SyncOverview { ready: readiness::is_ready(&checks), checks, areas, lights, status })
+    Ok(SyncOverview {
+        ready: readiness::is_ready(&checks),
+        checks,
+        areas,
+        lights,
+        status,
+        audio_supported: cfg!(feature = "sync-audio"),
+    })
+}
+
+/// Current default output / input labels for "Sound from"; cheap, no bridge.
+#[tauri::command]
+pub fn sync_audio_devices(app: AppHandle) -> Result<AudioDevices, AudioProblem> {
+    let devices = audio::devices::default_devices();
+    logs::write(&app, "debug", "app", "sync.audio_devices", format!("{devices:?}"), None);
+    devices
 }
 
 #[tauri::command]
@@ -136,6 +158,7 @@ mod live {
             stream_lights: lights.iter().filter(|l| l.renderer).count(),
             areas: &areas,
             busy_area: None,
+            audio: Some(&audio::devices::default_devices()),
         });
         println!("bridge {model:?} api {api:?}");
         for c in &checks {
