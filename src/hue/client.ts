@@ -195,6 +195,8 @@ export async function pairWithBridge(ip: string, appName = "hue-tray"): Promise<
 
 export type HueResource = {
   id: string;
+  /** The same resource in API v1, e.g. "/groups/81" (schedules use v1). */
+  id_v1?: string;
   type: string;
   metadata?: { name?: string; archetype?: string };
   owner?: { rid: string; rtype: string };
@@ -277,6 +279,37 @@ export class HueClient {
       throw new Error(json.errors.map((e) => e.description).join("; "));
     }
     return (json.data ?? ([] as unknown)) as T;
+  }
+
+  /**
+   * API v1 (/api/<key>/…) — still the only way to create schedules and rules
+   * that run on the bridge. Writes answer with a list of `success` / `error`
+   * entries; an error entry throws.
+   */
+  async v1<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
+    const res = await hueFetch(
+      this.ip,
+      method,
+      `/api/${this.key}${path}`,
+      body ? { "content-type": "application/json" } : {},
+      body ? JSON.stringify(body) : null,
+      this.pin,
+    );
+    const json = parseBody<unknown>(res);
+    if (Array.isArray(json)) {
+      const errors = json.flatMap((entry) =>
+        entry && typeof entry === "object" && "error" in entry
+          ? [(entry as { error: { description?: string } }).error.description ?? "bridge error"]
+          : [],
+      );
+      if (errors.length > 0) throw new Error(errors.join("; "));
+    }
+    return json as T;
+  }
+
+  /** The application key, for v1 addresses inside schedule commands. */
+  get applicationKey(): string {
+    return this.key;
   }
 
   getAll(resource: string): Promise<HueResource[]> {

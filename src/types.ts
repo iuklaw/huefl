@@ -43,6 +43,8 @@ export type RoomView = {
   name: string;
   /** the room's grouped_light service — one command for the whole room */
   groupedLightId: string | null;
+  /** The same room as an API v1 group ("81"), which bridge schedules address. */
+  v1GroupId: string | null;
   on: boolean;
   brightness: number;
   lightIds: string[];
@@ -88,6 +90,16 @@ export type Palette = {
   mirek?: number;
 };
 
+/** Where the sun is watched from, for sunrise / sunset schedules. */
+export type ScheduleLocation = {
+  lat: number;
+  lon: number;
+  /** IANA time zone of the place. */
+  timeZone: string;
+  /** "Warsaw, Poland" — for display. */
+  name: string;
+};
+
 /** The user's saved things, persisted with the settings. */
 export type Library = {
   /** lightId -> recently used colors (hex, newest first, max 5) */
@@ -107,6 +119,8 @@ export type AppState = {
   syncing: { rooms: string[]; lights: string[] };
   library: Library;
   syncPrefs: SyncPrefs;
+  /** Chosen by the user; null = derived from the bridge's time zone. */
+  scheduleLocation: ScheduleLocation | null;
 };
 
 export type LightCommand = {
@@ -135,6 +149,7 @@ export type Actions = {
   applyScene(scene: Scene): void;
   applyPalette(roomId: string, palette: Palette): void;
   setSyncPrefs(patch: Partial<SyncPrefs>): Promise<void>;
+  setScheduleLocation(location: ScheduleLocation): Promise<void>;
   setPreferences(patch: Partial<Preferences>): Promise<void>;
   minimize(): Promise<void>;
   hideToTray(): Promise<void>;

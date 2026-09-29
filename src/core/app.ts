@@ -62,6 +62,7 @@ let state: AppState = {
   syncing: { rooms: [], lights: [] },
   library: DEFAULT_SETTINGS.library,
   syncPrefs: DEFAULT_SETTINGS.syncPrefs,
+  scheduleLocation: null,
 };
 
 const listeners = new Set<() => void>();
@@ -84,6 +85,11 @@ const appWindow = getCurrentWindow();
 export function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+/** The live bridge connection, for other core modules (schedules). */
+export function hueClient(): HueClient | null {
+  return client;
 }
 
 export function getState(): AppState {
@@ -212,6 +218,12 @@ export const actions: Actions = {
     );
     settings = { ...settings, ...patch };
     patchState({ preferences: { ...state.preferences, ...patch } });
+    await saveSettings(settings);
+  },
+
+  setScheduleLocation: async (location) => {
+    settings = { ...settings, scheduleLocation: location };
+    patchState({ scheduleLocation: location });
     await saveSettings(settings);
   },
 
@@ -630,6 +642,7 @@ export async function start(): Promise<void> {
       preferences: { closeBehavior: settings.closeBehavior, theme: settings.theme },
       library: settings.library,
       syncPrefs: settings.syncPrefs,
+      scheduleLocation: settings.scheduleLocation,
     });
 
     // Show the window only when there is no bridge yet — otherwise the app

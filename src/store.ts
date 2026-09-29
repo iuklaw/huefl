@@ -4,7 +4,7 @@
 // webview has no file system access. Rust reads the bridge fields too (the
 // tray talks to the bridge on its own) and ignores the rest.
 import { invoke } from "@tauri-apps/api/core";
-import type { CloseBehavior, Library, SyncPrefs, ThemePreference } from "./types";
+import type { CloseBehavior, Library, ScheduleLocation, SyncPrefs, ThemePreference } from "./types";
 
 export type BridgePairing = {
   bridgeIp: string | null;
@@ -22,6 +22,8 @@ export type Settings = BridgePairing & {
   /** Color history and saved presets. */
   library: Library;
   syncPrefs: SyncPrefs;
+  /** For sunrise / sunset schedules; null = from the bridge's time zone. */
+  scheduleLocation: ScheduleLocation | null;
 };
 
 export const NO_BRIDGE: BridgePairing = {
@@ -48,6 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
     safeMode: true,
     screenMonitor: null,
   },
+  scheduleLocation: null,
 };
 
 export async function loadSettings(): Promise<Settings> {

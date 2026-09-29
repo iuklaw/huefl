@@ -3,6 +3,8 @@ import { BookmarkPlus, ChevronRight, Lightbulb, Sun } from "lucide-react";
 import { LevelSlider } from "@/components/LevelSlider";
 import { LightRow } from "@/components/LightRow";
 import { RoomPresets } from "@/components/RoomPresets";
+import { RoomScheduleMenu } from "@/components/schedule/RoomScheduleMenu";
+import { RoomScheduleStatus } from "@/components/schedule/RoomScheduleStatus";
 import { SavePresetDialog } from "@/components/SavePresetDialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -34,6 +36,7 @@ type Props = {
    *  regular commands to them, so the controls pause instead of pretending. */
   syncLocked: boolean;
   onPresetsExpandedChange: (expanded: boolean) => void;
+  onOpenSchedules: () => void;
 };
 
 export function RoomCard({
@@ -48,6 +51,7 @@ export function RoomCard({
   presetsExpanded,
   onPresetsExpandedChange,
   syncLocked,
+  onOpenSchedules,
 }: Props) {
   const [saving, setSaving] = useState(false);
   const tint = room.on && room.color ? room.color : null;
@@ -114,6 +118,7 @@ export function RoomCard({
             )}
           </p>
         </div>
+        <RoomScheduleMenu room={room} disabled={syncLocked} onOpenSchedules={onOpenSchedules} />
         <Switch
           checked={room.on}
           disabled={syncLocked}
@@ -121,6 +126,8 @@ export function RoomCard({
           aria-label={t("room.toggle_label", { name: room.name })}
         />
       </div>
+
+      {!syncLocked && <RoomScheduleStatus room={room} />}
 
       {syncLocked && (
         <div className="mt-3 flex items-center gap-2 rounded-md bg-primary/10 px-2.5 py-1.5 text-xs">

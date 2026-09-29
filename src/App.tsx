@@ -13,10 +13,12 @@ import { setTheme } from "@/lib/theme";
 import { HomeView } from "@/views/HomeView";
 import { OptionsView, type OptionsTab } from "@/views/OptionsView";
 import { PairingView } from "@/views/PairingView";
+import { SchedulesView } from "@/views/SchedulesView";
 import { SyncView } from "@/views/SyncView";
+import { ScheduleEditor } from "@/components/schedule/ScheduleEditor";
 import { MainTabs, type MainTab } from "@/components/MainTabs";
 
-type View = { name: "home" } | { name: "options"; tab: OptionsTab };
+type View = { name: "home" } | { name: "options"; tab: OptionsTab } | { name: "schedules" };
 
 export function App() {
   const state = useAppState();
@@ -72,6 +74,8 @@ export function App() {
           onTabChange={(tab) => setView({ name: "options", tab })}
           onBack={() => setView({ name: "home" })}
         />
+      ) : view.name === "schedules" && state.status !== "unconfigured" ? (
+        <SchedulesView onBack={() => setView({ name: "home" })} />
       ) : state.status === "unconfigured" ? (
         <PairingView />
       ) : (
@@ -88,6 +92,7 @@ export function App() {
                 expanded={expanded}
                 onExpandedChange={setExpanded}
                 onOpenBridgeSettings={() => openOptions("bridge")}
+                onOpenSchedules={() => setView({ name: "schedules" })}
               />
             )}
           </div>
@@ -95,6 +100,9 @@ export function App() {
       )}
 
       <AppFooter />
+
+      {/* One schedule editor, opened from room cards and the Schedules screen. */}
+      <ScheduleEditor />
 
       <CloseDialog
         open={closeOpen}

@@ -1,4 +1,4 @@
-import { House } from "lucide-react";
+import { CalendarClock, House } from "lucide-react";
 import { RoomCard } from "@/components/RoomCard";
 import { StatusBanner } from "@/components/StatusBanner";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,10 @@ type Props = {
   expanded: ReadonlySet<string>;
   onExpandedChange: (expanded: ReadonlySet<string>) => void;
   onOpenBridgeSettings: () => void;
+  onOpenSchedules: () => void;
 };
 
-export function HomeView({ state, expanded, onExpandedChange, onOpenBridgeSettings }: Props) {
+export function HomeView({ state, expanded, onExpandedChange, onOpenBridgeSettings, onOpenSchedules }: Props) {
   const toggleExpanded = (id: string, open: boolean) => {
     const next = new Set(expanded);
     if (open) next.add(id);
@@ -45,6 +46,10 @@ export function HomeView({ state, expanded, onExpandedChange, onOpenBridgeSettin
                 {t("home.rooms")}
               </h1>
               <div className="flex gap-1">
+                <Button size="xs" variant="ghost" onClick={onOpenSchedules}>
+                  <CalendarClock />
+                  {t("schedule.title")}
+                </Button>
                 <Button size="xs" variant="ghost" onClick={() => actions.setAllRooms(true)}>
                   {t("home.all_on")}
                 </Button>
@@ -69,6 +74,7 @@ export function HomeView({ state, expanded, onExpandedChange, onOpenBridgeSettin
               presetsExpanded={expanded.has(`presets:${room.id}`)}
               onPresetsExpandedChange={(open) => toggleExpanded(`presets:${room.id}`, open)}
               syncLocked={room.lightIds.some((id) => streamingLights.has(id))}
+              onOpenSchedules={onOpenSchedules}
             />
           ))}
 

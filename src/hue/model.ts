@@ -154,6 +154,7 @@ export function toHueView(
         id: room.id,
         name: room.metadata?.name ?? t("fallback.room"),
         groupedLightId,
+        v1GroupId: grouped?.id_v1?.match(/^\/groups\/(\d+)$/)?.[1] ?? null,
         // grouped_light sometimes has no dimming, so average the lights that are on
         on: grouped?.on?.on ?? roomLights.some((l) => l.on),
         brightness: Math.round(grouped?.dimming?.brightness ?? averageBrightness(roomLights)),
