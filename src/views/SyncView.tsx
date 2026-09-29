@@ -17,6 +17,8 @@ import {
   Music,
 } from "lucide-react";
 import { AreaWizard } from "@/components/sync/AreaWizard";
+import { ScreenPreview } from "@/components/sync/ScreenPreview";
+import { SpectrumBars } from "@/components/sync/SpectrumBars";
 import { Readiness } from "@/components/sync/Readiness";
 import {
   AlertDialog,
@@ -157,7 +159,7 @@ function SyncControls({
   onNewArea: () => void;
   onEditArea: (area: SyncArea) => void;
 }) {
-  const { status, preview, levels, overview, audioLost } = useSyncState();
+  const { status, preview, overview, audioLost, monitors } = useSyncState();
   const audioCheck = overview?.checks.find((c) => c.id === "audio");
   const { syncPrefs, library } = useAppState();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -222,6 +224,12 @@ function SyncControls({
   };
 
   if (!area) return null;
+  const showBars = status.state === "streaming" && mode === "music";
+  const showScreen = status.state === "streaming" && mode === "screen";
+  const monitor =
+    monitors?.find((m) => m.name === syncPrefs.screenMonitor) ??
+    monitors?.find((m) => m.primary) ??
+    monitors?.[0];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -355,9 +363,25 @@ function SyncControls({
         </div>
       </ScrollArea>
 
+      {/* What the lights show, standing on the bottom bar: the spectrum for
+          music, a miniature of the screen for screen sync, the lights'
+          colors for ambient. */}
+      {status.state === "streaming" && mode === "ambient" && preview.length > 0 && (
+        <LiveLights colors={preview} />
+      )}
+      {showBars && <SpectrumBars colors={source.colors} />}
+      {showScreen && (
+        <ScreenPreview
+          channels={area.channels}
+          colors={preview}
+          intensity={syncPrefs.intensity}
+          aspect={monitor ? monitor.width / monitor.height : 16 / 9}
+        />
+      )}
+
       {/* Pinned to the bottom: always in reach, whatever is scrolled above.
           pb-8 clears the app footer bar, which overlays the window's bottom. */}
-      <div className="shrink-0 space-y-3 border-t border-border bg-background px-3 pt-3 pb-8">
+      <div className="shrink-0 space-y-3 border-t border-border bg-background/70 px-3 pt-3 pb-8 backdrop-blur-sm">
         {/* Intensity */}
         <Field label={t("sync.intensity")}>
           <Segmented
@@ -413,8 +437,6 @@ function SyncControls({
                 : t("sync.start")}
         </Button>
 
-        {/* Live preview */}
-        {status.state === "streaming" && levels && <LevelMeters levels={levels} />}
         {status.state === "streaming" && audioLost && (
           <p
             className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground"
@@ -423,20 +445,6 @@ function SyncControls({
             <Spinner className="size-3" />
             {mode === "screen" ? t("sync.screen_waiting") : t("sync.audio_waiting")}
           </p>
-        )}
-        {status.state === "streaming" && preview.length > 0 && (
-          <div className="flex items-center justify-center gap-2" aria-label={t("sync.live")}>
-            <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              {t("sync.live")}
-            </span>
-            {preview.map((hex, i) => (
-              <span
-                key={i}
-                className="size-5 rounded-full ring-1 ring-border transition-colors duration-100"
-                style={{ backgroundColor: hex, boxShadow: `0 0 12px ${hex}` }}
-              />
-            ))}
-          </div>
         )}
       </div>
 
@@ -576,25 +584,19 @@ function MusicSettings({
   );
 }
 
-/** Bass / mid / treble bars while music sync runs. */
-function LevelMeters({ levels }: { levels: [number, number, number, number] }) {
-  const bands = [
-    { label: t("sync.levels.bass"), value: levels[1] },
-    { label: t("sync.levels.mid"), value: levels[2] },
-    { label: t("sync.levels.treble"), value: levels[3] },
-  ];
+/** Ambient: the lights' current colors. */
+function LiveLights({ colors }: { colors: string[] }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
-      {bands.map((band) => (
-        <div key={band.label} className="space-y-1">
-          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-[width] duration-75"
-              style={{ width: `${Math.round(band.value * 100)}%` }}
-            />
-          </div>
-          <p className="text-center text-[10px] text-muted-foreground">{band.label}</p>
-        </div>
+    <div className="flex items-center justify-center gap-2 px-3 pb-3" aria-label={t("sync.live")}>
+      <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+        {t("sync.live")}
+      </span>
+      {colors.map((hex, i) => (
+        <span
+          key={i}
+          className="size-5 rounded-full ring-1 ring-border transition-colors duration-100"
+          style={{ backgroundColor: hex, boxShadow: `0 0 12px ${hex}` }}
+        />
       ))}
     </div>
   );

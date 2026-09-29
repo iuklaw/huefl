@@ -31,7 +31,6 @@ export type SyncRequest = {
 /** One "sync-preview" event (~12 per second while streaming). */
 type Preview = {
   colors: string[];
-  levels: [number, number, number, number] | null;
   audioLost: boolean;
 };
 
@@ -43,8 +42,6 @@ export type SyncState = {
   error: string | null;
   /** Current channel colors while streaming, "#RRGGBB" in channel order. */
   preview: string[];
-  /** Music: energy, bass, mid, treble (0..1). */
-  levels: [number, number, number, number] | null;
   /** Music: the audio input is gone for now (sound server restarting, …). */
   audioLost: boolean;
   /** Names for "Sound from"; null until asked or when there's no sound server. */
@@ -59,7 +56,6 @@ let state: SyncState = {
   loading: false,
   error: null,
   preview: [],
-  levels: null,
   audioLost: false,
   audioDevices: null,
   monitors: null,
@@ -134,7 +130,6 @@ void listen<SyncStatus>("sync-status", ({ payload }) => {
   patch({
     status: payload,
     preview: streaming ? state.preview : [],
-    levels: streaming ? state.levels : null,
     audioLost: streaming && state.audioLost,
   });
   // Area "active" flags change with the stream; keep the overview honest.
@@ -142,7 +137,7 @@ void listen<SyncStatus>("sync-status", ({ payload }) => {
 });
 
 void listen<Preview>("sync-preview", ({ payload }) =>
-  patch({ preview: payload.colors, levels: payload.levels, audioLost: payload.audioLost }),
+  patch({ preview: payload.colors, audioLost: payload.audioLost }),
 );
 
 void invoke<SyncStatus>("sync_status")

@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { AmbientGradient } from "@/components/AmbientGradient";
 import { AppFooter } from "@/components/AppFooter";
 import { CloseDialog } from "@/components/CloseDialog";
 import { TitleBar } from "@/components/TitleBar";
 import { actions, getState } from "@/core/app";
 import { log } from "@/core/log";
 import { useAppState } from "@/core/useAppState";
+import { useSyncState } from "@/core/useSyncState";
+import { liveGlow } from "@/lib/color";
 import { setTheme } from "@/lib/theme";
 import { HomeView } from "@/views/HomeView";
 import { OptionsView, type OptionsTab } from "@/views/OptionsView";
@@ -17,6 +20,9 @@ type View = { name: "home" } | { name: "options"; tab: OptionsTab };
 
 export function App() {
   const state = useAppState();
+  const { status: syncStatus, preview } = useSyncState();
+  // While sync streams, the background follows the lights live.
+  const live = syncStatus.state === "streaming" && preview.length > 0 ? liveGlow(preview) : null;
   const [view, setView] = useState<View>({ name: "home" });
   const [closeOpen, setCloseOpen] = useState(false);
   /** Lights or Sync — the two main views under the title bar. */
@@ -69,19 +75,23 @@ export function App() {
       ) : state.status === "unconfigured" ? (
         <PairingView />
       ) : (
-        <>
-          <MainTabs value={mainTab} onChange={setMainTab} />
-          {mainTab === "sync" ? (
-            <SyncView onRepair={() => openOptions("bridge")} />
-          ) : (
-            <HomeView
-              state={state}
-              expanded={expanded}
-              onExpandedChange={setExpanded}
-              onOpenBridgeSettings={() => openOptions("bridge")}
-            />
-          )}
-        </>
+        // One glow behind both main views; the content sits above it.
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <AmbientGradient rooms={state.rooms} live={live} />
+          <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+            <MainTabs value={mainTab} onChange={setMainTab} />
+            {mainTab === "sync" ? (
+              <SyncView onRepair={() => openOptions("bridge")} />
+            ) : (
+              <HomeView
+                state={state}
+                expanded={expanded}
+                onExpandedChange={setExpanded}
+                onOpenBridgeSettings={() => openOptions("bridge")}
+              />
+            )}
+          </div>
+        </div>
       )}
 
       <AppFooter />

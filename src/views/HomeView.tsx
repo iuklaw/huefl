@@ -1,5 +1,4 @@
 import { House } from "lucide-react";
-import { AmbientGradient } from "@/components/AmbientGradient";
 import { RoomCard } from "@/components/RoomCard";
 import { StatusBanner } from "@/components/StatusBanner";
 import { Button } from "@/components/ui/button";
@@ -34,9 +33,9 @@ export function HomeView({ state, expanded, onExpandedChange, onOpenBridgeSettin
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <AmbientGradient rooms={state.rooms} />
       <ScrollArea className="relative z-10 min-h-0 flex-1">
-        {/* Bottom padding lets the last card scroll above the strongest glow. */}
+        {/* Bottom padding lets the last card scroll above the strongest glow
+            (the glow itself lives in App, behind Lights and Sync). */}
         <div className="space-y-3 p-3 pb-[12vh]">
           <StatusBanner state={state} onOpenBridgeSettings={onOpenBridgeSettings} />
 

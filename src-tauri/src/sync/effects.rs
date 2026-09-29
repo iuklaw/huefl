@@ -7,9 +7,9 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use super::audio::analyzer::Features;
+use super::audio::analyzer::{Features, SPECTRUM_BANDS};
 use super::entertainment::api::AreaChannel;
-use super::screen::zones::{zone_colors, Grid};
+use super::screen::zones::{zone_colors, Grid, ZoneStyle};
 use super::smoothing::{Envelope, SafetyLimiter};
 
 /// Linear RGB, 0.0..=1.0.
@@ -19,8 +19,14 @@ pub trait Effect: Send {
     /// `dt`: seconds since the previous frame. One color per channel, same order.
     fn render(&mut self, dt: f32, channels: &[AreaChannel]) -> Vec<Rgb>;
 
-    /// Input levels for the live preview: energy, bass, mid, treble (0..1).
-    fn levels(&self) -> Option<[f32; 4]> {
+    /// Music: the bars of the UI's spectrum visualizer (0..1).
+    fn spectrum(&self) -> Option<[f32; SPECTRUM_BANDS]> {
+        None
+    }
+
+    /// Screen: the coarse screen grid for the UI's preview, sRGB bytes
+    /// (R, G, B per cell, row-major, zones::GRID_COLS × GRID_ROWS).
+    fn screen_preview(&self) -> Option<Vec<u8>> {
         None
     }
 
@@ -180,9 +186,8 @@ impl Effect for MusicEffect {
             .collect()
     }
 
-    fn levels(&self) -> Option<[f32; 4]> {
-        let f = self.latest;
-        Some([f.energy, f.bands[0], f.bands[1], f.bands[2]])
+    fn spectrum(&self) -> Option<[f32; SPECTRUM_BANDS]> {
+        Some(self.latest.spectrum)
     }
 
     fn limited_flashes(&self) -> u32 {
@@ -196,7 +201,8 @@ impl Effect for MusicEffect {
 
 // --- Screen ------------------------------------------------------------------
 
-/// Reaction time per intensity step (0 subtle … 3 extreme), seconds.
+/// Reaction time per intensity step (0 subtle … 3 extreme), seconds. How
+/// vivid the colors are also follows intensity: zones::ZoneStyle.
 const SCREEN_FOLLOW: [f32; 4] = [0.5, 0.25, 0.12, 0.05];
 
 /// Each light follows the part of the screen matching its place in the area
@@ -205,6 +211,7 @@ const SCREEN_FOLLOW: [f32; 4] = [0.5, 0.25, 0.12, 0.05];
 pub struct ScreenEffect {
     grid: Arc<Mutex<Option<Grid>>>,
     follow: f32,
+    style: ZoneStyle,
     envelopes: Vec<[Envelope; 3]>,
     safe: Option<SafetyLimiter>,
     lost: Arc<AtomicBool>,
@@ -215,6 +222,7 @@ impl ScreenEffect {
         Self {
             grid,
             follow: SCREEN_FOLLOW[usize::from(intensity.min(3))],
+            style: ZoneStyle::for_intensity(intensity),
             envelopes: Vec::new(),
             safe: safe_mode.then(SafetyLimiter::default),
             lost,
@@ -225,7 +233,7 @@ impl ScreenEffect {
 impl Effect for ScreenEffect {
     fn render(&mut self, dt: f32, channels: &[AreaChannel]) -> Vec<Rgb> {
         let targets = match self.grid.lock().unwrap().as_ref() {
-            Some(grid) => zone_colors(grid, channels),
+            Some(grid) => zone_colors(grid, channels, self.style),
             None => vec![[0.0; 3]; channels.len()],
         };
         self.envelopes.resize(channels.len(), [Envelope::default(); 3]);
@@ -246,6 +254,11 @@ impl Effect for ScreenEffect {
             }
         }
         colors
+    }
+
+    fn screen_preview(&self) -> Option<Vec<u8>> {
+        let grid = self.grid.lock().unwrap();
+        Some(grid.as_ref()?.cells.iter().flat_map(|c| c.map(linear_to_srgb8)).collect())
     }
 
     fn limited_flashes(&self) -> u32 {
@@ -304,6 +317,13 @@ pub fn parse_hex(hex: &str) -> Option<Rgb> {
     Some([channel(0)?, channel(2)?, channel(4)?])
 }
 
+/// Linear 0..1 → an sRGB byte, for what the UI shows.
+pub fn linear_to_srgb8(v: f32) -> u8 {
+    let v = v.clamp(0.0, 1.0);
+    let s = if v <= 0.003_130_8 { 12.92 * v } else { 1.055 * v.powf(1.0 / 2.4) - 0.055 };
+    (s * 255.0).round() as u8
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -352,7 +372,7 @@ mod tests {
     #[test]
     fn spectrum_maps_bands_left_to_right() {
         let (mut effect, features) = music(MusicStyle::Spectrum, false);
-        *features.lock().unwrap() = Features { energy: 1.0, bands: [1.0, 0.0, 0.0], beats: 0 };
+        *features.lock().unwrap() = Features { energy: 1.0, bands: [1.0, 0.0, 0.0], beats: 0, ..Features::default() };
         let channels = [channel(0, 0.9), channel(1, -0.9), channel(2, 0.0)];
         let mut colors = vec![];
         for _ in 0..25 {
@@ -367,7 +387,7 @@ mod tests {
     fn pulse_follows_energy_and_fades() {
         let (mut effect, features) = music(MusicStyle::Pulse, false);
         let channels = [channel(0, 0.0)];
-        *features.lock().unwrap() = Features { energy: 1.0, bands: [0.0; 3], beats: 0 };
+        *features.lock().unwrap() = Features { energy: 1.0, bands: [0.0; 3], beats: 0, ..Features::default() };
         for _ in 0..10 {
             effect.render(0.02, &channels);
         }
@@ -381,7 +401,7 @@ mod tests {
     fn beats_move_the_color_on() {
         let (mut effect, features) = music(MusicStyle::Pulse, false);
         let channels = [channel(0, 0.0)];
-        *features.lock().unwrap() = Features { energy: 1.0, bands: [0.0; 3], beats: 0 };
+        *features.lock().unwrap() = Features { energy: 1.0, bands: [0.0; 3], beats: 0, ..Features::default() };
         let mut before = [0.0; 3];
         for _ in 0..30 {
             before = effect.render(0.02, &channels)[0];

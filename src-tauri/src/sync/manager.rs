@@ -20,6 +20,7 @@ use super::audio::analyzer::Features;
 use super::audio::capture::{AudioEvent, AudioInput, AudioSource};
 use super::effects::{self, Effect, MusicEffect, MusicStyle, PaletteCycle, ScreenEffect};
 use super::screen::capture::{ScreenEvent, ScreenSource};
+use super::screen::zones::{GRID_COLS, GRID_ROWS};
 use super::entertainment::api::{Area, BridgeAccess};
 use super::entertainment::dtls::DtlsStream;
 use super::entertainment::protocol::{encode, ChannelColor, ColorSpace};
@@ -29,16 +30,25 @@ use crate::logs;
 const FRAME: Duration = Duration::from_millis(20); // 50 Hz, what the bridge expects
 const PREVIEW_EVERY: u32 = 4; // ~12 Hz of preview events for the UI
 const STATS_EVERY: Duration = Duration::from_secs(10);
+const SPECTRUM_EVERY: u32 = 2; // 25 Hz for the music visualizer
+const SCREEN_EVERY: u32 = 5; // 10 Hz for the screen preview
+const VISIBILITY_EVERY: Duration = Duration::from_secs(1);
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Preview {
     /// Channel colors, "#RRGGBB", in channel order.
     colors: Vec<String>,
-    /// Music only: energy, bass, mid, treble.
-    levels: Option<[f32; 4]>,
     /// Music only: audio input gone for now (e.g. sound server restarting).
     audio_lost: bool,
+}
+
+/// The coarse screen grid for the Screen tab's preview: sRGB bytes, row-major.
+#[derive(Clone, Serialize)]
+struct ScreenPreview {
+    cols: usize,
+    rows: usize,
+    cells: Vec<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -358,6 +368,10 @@ fn stream_loop(
     logs::write(app, "debug", "app", "sync.connected", format!("DTLS connected in {} ms", connected.elapsed().as_millis()), None);
     set_status(app, SyncStatus::Streaming { area_id: area.id.clone(), light_ids: area.light_ids.clone() });
 
+    let window_visible = || app.get_webview_window("main").and_then(|w| w.is_visible().ok()).unwrap_or(false);
+    let mut visible = window_visible();
+    let mut visibility_checked = Instant::now();
+
     let mut sent: u32 = 0;
     let mut stats_since = Instant::now();
     let mut stats_sent: u32 = 0;
@@ -383,10 +397,26 @@ fn stream_loop(
                 "sync-preview",
                 Preview {
                     colors: colors.iter().map(|c| to_hex(*c)).collect(),
-                    levels: effect.levels(),
                     audio_lost: effect.input_lost(),
                 },
             );
+        }
+        // Visualizers: only for a visible window — a hidden one's JS is
+        // suspended, and events would just queue up for it.
+        if visibility_checked.elapsed() >= VISIBILITY_EVERY {
+            visibility_checked = Instant::now();
+            visible = window_visible();
+        }
+        if visible && sent.is_multiple_of(SPECTRUM_EVERY) {
+            if let Some(spectrum) = effect.spectrum() {
+                let bars: Vec<u8> = spectrum.iter().map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8).collect();
+                let _ = app.emit("sync-spectrum", bars);
+            }
+        }
+        if visible && sent.is_multiple_of(SCREEN_EVERY) {
+            if let Some(cells) = effect.screen_preview() {
+                let _ = app.emit("sync-screen", ScreenPreview { cols: GRID_COLS, rows: GRID_ROWS, cells });
+            }
         }
         if stats_since.elapsed() >= STATS_EVERY {
             let seconds = stats_since.elapsed().as_secs_f32();
@@ -415,12 +445,8 @@ fn stream_loop(
 
 /// Linear RGB back to "#RRGGBB" (sRGB) for the UI preview.
 fn to_hex(rgb: [f32; 3]) -> String {
-    let encode = |v: f32| {
-        let v = v.clamp(0.0, 1.0);
-        let s = if v <= 0.003_130_8 { 12.92 * v } else { 1.055 * v.powf(1.0 / 2.4) - 0.055 };
-        (s * 255.0).round() as u8
-    };
-    format!("#{:02X}{:02X}{:02X}", encode(rgb[0]), encode(rgb[1]), encode(rgb[2]))
+    let [r, g, b] = rgb.map(effects::linear_to_srgb8);
+    format!("#{r:02X}{g:02X}{b:02X}")
 }
 
 #[cfg(test)]

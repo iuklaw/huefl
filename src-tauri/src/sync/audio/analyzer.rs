@@ -8,6 +8,7 @@
 //     loud music both use the full range
 //   → beat: bass spectral flux above an adaptive threshold (mean + 1.5σ of the
 //     last second), at most one every 250 ms (240 BPM)
+//   → spectrum: 24 log-spaced bars for the UI's visualizer, from the same FFT
 
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -30,6 +31,21 @@ const FLUX_HISTORY: usize = 94; // ~1 s
 const BEAT_SIGMA: f32 = 1.5;
 const MIN_BEAT_INTERVAL: f32 = 0.25;
 
+/// Bars of the UI's spectrum: log-spaced from 60 Hz to 16 kHz.
+pub const SPECTRUM_BANDS: usize = 24;
+const SPECTRUM_HZ: (f32, f32) = (60.0, 16_000.0);
+/// Loudness shown per bar: this many dB below the recent peak reads as zero.
+const SPECTRUM_RANGE_DB: f32 = 50.0;
+/// How far a bar may fall per block (~0.5 s from full to empty); rises are instant.
+const SPECTRUM_FALL: f32 = 0.02;
+
+/// Frequency range of spectrum bar `index`.
+pub fn spectrum_band(index: usize) -> (f32, f32) {
+    let (lo, hi) = SPECTRUM_HZ;
+    let edge = |i: usize| lo * (hi / lo).powf(i as f32 / SPECTRUM_BANDS as f32);
+    (edge(index), edge(index + 1))
+}
+
 /// What the effects read. `beats` counts up — a reader that polls less often
 /// than the analyzer runs still sees every beat.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -39,6 +55,9 @@ pub struct Features {
     /// Bass, mid, treble, 0..1 each (gain-normalized per band).
     pub bands: [f32; 3],
     pub beats: u64,
+    /// For the UI's bars, 0..1 each: dB below a shared peak, so the shape of
+    /// the spectrum stays while quiet and loud music both fill the height.
+    pub spectrum: [f32; SPECTRUM_BANDS],
 }
 
 pub struct Analyzer {
@@ -47,6 +66,7 @@ pub struct Analyzer {
     samples: VecDeque<f32>,
     energy_peak: f32,
     band_peaks: [f32; 3],
+    spectrum_peak: f32,
     prev_bass: f32,
     flux: VecDeque<f32>,
     since_beat: f32,
@@ -64,6 +84,7 @@ impl Default for Analyzer {
             samples: VecDeque::with_capacity(FFT_SIZE),
             energy_peak: PEAK_FLOOR,
             band_peaks: [PEAK_FLOOR; 3],
+            spectrum_peak: PEAK_FLOOR,
             prev_bass: 0.0,
             flux: VecDeque::with_capacity(FLUX_HISTORY),
             since_beat: MIN_BEAT_INTERVAL,
@@ -91,11 +112,14 @@ impl Analyzer {
             self.energy_peak = (self.energy_peak * PEAK_DECAY).max(PEAK_FLOOR);
             self.features.energy = 0.0;
             self.features.bands = [0.0; 3];
+            self.features.spectrum = [0.0; SPECTRUM_BANDS];
             self.prev_bass = 0.0;
             return self.features;
         }
 
-        let bands = self.band_amplitudes();
+        let magnitudes = self.magnitudes();
+        let bands = band_amplitudes(&magnitudes);
+        self.update_spectrum(&magnitudes);
 
         self.energy_peak = (self.energy_peak * PEAK_DECAY).max(rms).max(PEAK_FLOOR);
         self.features.energy = (rms / self.energy_peak).min(1.0);
@@ -120,7 +144,8 @@ impl Analyzer {
         self.features
     }
 
-    fn band_amplitudes(&self) -> [f32; 3] {
+    /// Amplitude per FFT bin (0 … Nyquist) of the current window.
+    fn magnitudes(&self) -> Vec<f32> {
         let mut buffer: Vec<Complex<f32>> = self
             .samples
             .iter()
@@ -128,17 +153,46 @@ impl Analyzer {
             .map(|(s, w)| Complex::new(s * w, 0.0))
             .collect();
         self.fft.process(&mut buffer);
-
-        let bin_hz = SAMPLE_RATE / FFT_SIZE as f32;
-        let mut power = [0.0f32; 3];
-        for (k, c) in buffer.iter().enumerate().take(FFT_SIZE / 2).skip(1) {
-            let hz = k as f32 * bin_hz;
-            if let Some(band) = BANDS_HZ.iter().position(|&(lo, hi)| hz >= lo && hz < hi) {
-                power[band] += c.norm_sqr();
-            }
-        }
-        power.map(|p| p.sqrt() / FFT_SIZE as f32)
+        buffer.iter().take(FFT_SIZE / 2).map(|c| c.norm() / FFT_SIZE as f32).collect()
     }
+
+    fn update_spectrum(&mut self, magnitudes: &[f32]) {
+        let bars: [f32; SPECTRUM_BANDS] = std::array::from_fn(|i| {
+            let (lo, hi) = spectrum_band(i);
+            let (first, last) = ((lo / BIN_HZ).ceil() as usize, (hi / BIN_HZ).ceil() as usize);
+            if first < last {
+                magnitudes[first.min(magnitudes.len())..last.min(magnitudes.len())].iter().fold(0.0f32, |m, &v| m.max(v))
+            } else {
+                // Narrower than a bin (the lowest bars): read between the two
+                // neighbouring bins, so these bars don't just copy each other.
+                let at = (lo * hi).sqrt() / BIN_HZ;
+                let k = at.floor() as usize;
+                let t = at - k as f32;
+                magnitudes[k] * (1.0 - t) + magnitudes[(k + 1).min(magnitudes.len() - 1)] * t
+            }
+        });
+
+        let loudest = bars.iter().fold(0.0f32, |m, &v| m.max(v));
+        self.spectrum_peak = (self.spectrum_peak * PEAK_DECAY).max(loudest).max(PEAK_FLOOR);
+        for (shown, &bar) in self.features.spectrum.iter_mut().zip(&bars) {
+            let db = 20.0 * (bar.max(1e-9) / self.spectrum_peak).log10();
+            let level = (1.0 + db / SPECTRUM_RANGE_DB).clamp(0.0, 1.0);
+            *shown = level.max(*shown - SPECTRUM_FALL);
+        }
+    }
+}
+
+const BIN_HZ: f32 = SAMPLE_RATE / FFT_SIZE as f32;
+
+fn band_amplitudes(magnitudes: &[f32]) -> [f32; 3] {
+    let mut power = [0.0f32; 3];
+    for (k, m) in magnitudes.iter().enumerate().skip(1) {
+        let hz = k as f32 * BIN_HZ;
+        if let Some(band) = BANDS_HZ.iter().position(|&(lo, hi)| hz >= lo && hz < hi) {
+            power[band] += m * m;
+        }
+    }
+    power.map(f32::sqrt)
 }
 
 fn mean_std(values: &VecDeque<f32>) -> (f32, f32) {
@@ -209,6 +263,32 @@ mod tests {
         }
         let features = run(&mut Analyzer::default(), &signal);
         assert!((6..=9).contains(&features.beats), "beats: {}", features.beats);
+    }
+
+    fn loudest_bar(f: &Features) -> usize {
+        (0..SPECTRUM_BANDS).max_by(|&a, &b| f.spectrum[a].total_cmp(&f.spectrum[b])).unwrap()
+    }
+
+    #[test]
+    fn spectrum_peaks_where_the_tone_is() {
+        for hz in [100.0, 1_000.0, 8_000.0] {
+            let features = run(&mut Analyzer::default(), &sine(hz, 0.5, 1.0));
+            let bar = loudest_bar(&features);
+            let (lo, hi) = spectrum_band(bar);
+            assert!(lo <= hz * 1.1 && hz <= hi * 1.1, "{hz} Hz → bar {bar} ({lo:.0}–{hi:.0} Hz)");
+            assert!(features.spectrum.iter().all(|v| (0.0..=1.0).contains(v)), "{:?}", features.spectrum);
+            assert!(features.spectrum[bar] > 0.9, "{:?}", features.spectrum);
+        }
+    }
+
+    #[test]
+    fn spectrum_bars_fall_gradually_after_a_tone() {
+        let mut analyzer = Analyzer::default();
+        let loud = run(&mut analyzer, &sine(1_000.0, 0.5, 0.5));
+        let bar = loudest_bar(&loud);
+        // Quiet but not silent: the bar drops by at most FALL per block.
+        let after = analyzer.process(&vec![1e-3; BLOCK]);
+        assert!(after.spectrum[bar] >= loud.spectrum[bar] - SPECTRUM_FALL - 1e-6, "{} → {}", loud.spectrum[bar], after.spectrum[bar]);
     }
 
     #[test]

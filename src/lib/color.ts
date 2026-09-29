@@ -43,7 +43,10 @@ function inGamut(p: Xy, g: Gamut): boolean {
 
 function closestOnSegment(a: Xy, b: Xy, p: Xy): Xy {
   const ab = { x: b.x - a.x, y: b.y - a.y };
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / (ab.x ** 2 + ab.y ** 2)));
+  const t = Math.max(
+    0,
+    Math.min(1, ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / (ab.x ** 2 + ab.y ** 2)),
+  );
   return { x: a.x + ab.x * t, y: a.y + ab.y * t };
 }
 
@@ -112,7 +115,10 @@ export function rgbToXy(rgb: Rgb, gamut: Gamut = GAMUT_C): Xy {
 export function mirekToRgb(mirek: number): Rgb {
   const t = 1_000_000 / mirek / 100;
   const r = t <= 66 ? 255 : 329.698727446 * (t - 60) ** -0.1332047592;
-  const g = t <= 66 ? 99.4708025861 * Math.log(t) - 161.1195681661 : 288.1221695283 * (t - 60) ** -0.0755148492;
+  const g =
+    t <= 66
+      ? 99.4708025861 * Math.log(t) - 161.1195681661
+      : 288.1221695283 * (t - 60) ** -0.0755148492;
   const b = t >= 66 ? 255 : t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307;
   const clamp = (v: number) => Math.round(Math.max(0, Math.min(255, v)));
   return { r: clamp(r), g: clamp(g), b: clamp(b) };
@@ -159,11 +165,38 @@ export function colorDistance(a: Rgb, b: Rgb): number {
 // --- Formatting --------------------------------------------------------------
 
 export function toHex({ r, g, b }: Rgb): string {
-  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+  return `#${[r, g, b]
+    .map((v) => v.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase()}`;
 }
 
 export function toCss({ r, g, b }: Rgb, alpha = 1): string {
   return alpha === 1 ? `rgb(${r} ${g} ${b})` : `rgb(${r} ${g} ${b} / ${alpha})`;
+}
+
+/**
+ * The background glow while sync streams: how strongly the lights shine
+ * (`level`, 0 off … 1 full — mean of each channel's brightest component) and
+ * their colors at full brightness, so the hue stays visible when the lights
+ * are dim — the strength is carried by `level`, not by darker colors.
+ */
+export function liveGlow(preview: readonly string[]): { colors: string[]; level: number } {
+  if (preview.length === 0) return { colors: [], level: 0 };
+  let total = 0;
+  const colors = preview.map((hex) => {
+    const rgb = hexToRgb(hex);
+    const max = Math.max(rgb.r, rgb.g, rgb.b);
+    total += max / 255;
+    if (max === 0) return "#000000";
+    const scale = 255 / max;
+    return toHex({
+      r: Math.round(rgb.r * scale),
+      g: Math.round(rgb.g * scale),
+      b: Math.round(rgb.b * scale),
+    });
+  });
+  return { colors, level: total / preview.length };
 }
 
 /**
