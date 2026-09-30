@@ -1,4 +1,4 @@
-# Hue Tray
+# HueFL — Hue for Linux
 
 Sterowanie lampami Philips Hue z zasobnika systemowego. Tauri 2 (Rust + webview
 systemowy) + TypeScript, lokalne API mostka (CLIP v2), bez chmury Signify poza
@@ -44,7 +44,7 @@ npm run tauri build
 
 Przy pierwszym starcie otwiera sie okno konfiguracji. Klikasz "Szukaj
 mostkow", nacisasz okragly przycisk na mostku i w ciagu ~30 s klikasz
-"Sparuj". Klucz aplikacji laduje w `~/.config/hue-tray/config.json`
+"Sparuj". Klucz aplikacji laduje w `~/.config/huefl/config.json`
 (uprawnienia 600).
 
 ## Jak to jest zbudowane
@@ -129,8 +129,8 @@ Dimmer, dociera tu natychmiast. Reconnect ma narastajacy backoff do 30 s.
 
 Historia akcji i zdarzen jest w Opcje → Logs (filtr poziomu, wyszukiwanie,
 "Copy" do zgloszen bledow) oraz na dysku jako JSON Lines:
-`~/.local/state/hue-tray/hue-tray.log` (uprawnienia 600, rotacja przy 1 MB do
-`hue-tray.log.1`). Logi trzyma Rust (`src-tauri/src/logs.rs`) — JS w ukrytym
+`~/.local/state/huefl/huefl.log` (uprawnienia 600, rotacja przy 1 MB do
+`huefl.log.1`). Logi trzyma Rust (`src-tauri/src/logs.rs`) — JS w ukrytym
 oknie bywa uspiony, a akcje traya dzieja sie tylko po stronie Rusta. Logger TS
 (`src/core/log.ts`) wysyla wpisy paczkami i wycina klucze (`applicationKey`,
 `clientKey`, naglowek `hue-application-key`).
@@ -187,14 +187,14 @@ cargo test --lib live_stream_screen -- --ignored --nocapture    # 5 s ekran -> l
 
 ## Autostart
 
-`~/.config/autostart/hue-tray.desktop`:
+`~/.config/autostart/huefl.desktop`:
 
 ```ini
 [Desktop Entry]
 Type=Application
-Name=Hue Tray
-Exec=hue-tray
-Icon=hue-tray
+Name=HueFL
+Exec=huefl
+Icon=huefl
 Terminal=false
 X-GNOME-Autostart-enabled=true
 ```
@@ -213,3 +213,25 @@ pokazuje sie tylko przy pierwszym uruchomieniu.
 - Strefy obok pokoi — `zone` mapuje sie tak samo jak `room`.
 - Jedna instancja (`tauri-plugin-single-instance`) — ponowne uruchomienie
   pokazuje okno zamiast drugiej ikony w trayu.
+
+## Zgłaszanie błędów
+
+Opcje → About → **Report a bug**: opis i — jeśli użytkownik
+zaznaczy — cały log z dysku (bieżący plik i poprzedni po rotacji) oraz informacje o systemie (dystrybucja,
+jądro, pulpit, serwer dźwięku, model mostka; bez nazwy komputera i użytkownika).
+Całe zgłoszenie jest widoczne w podglądzie przed wysłaniem. Klucze mostka są
+usuwane z treści po wartości (`src-tauri/src/report.rs`, `scrub`).
+
+Wysyłka (przycisk **Send**) jest ustawiana przy budowaniu. Build bez adresu
+serwera na razie niczego nie wysyła:
+
+```bash
+HUEFL_REPORT_URL=https://example.com/reports \
+HUEFL_REPORT_TOKEN=opcjonalny-token \
+npm run tauri build
+```
+
+Aplikacja wysyła `POST` z JSON-em (`BugReport` w `src/core/report.ts`, pole
+`schema: 1`) i nagłówkiem `Authorization: Bearer <token>`, jeśli token podano.
+Serwer odpowiada kodem 2xx i `{"id": "…"}` — identyfikator pokazuje się
+użytkownikowi. Limit: 5 MB na zgłoszenie, 15 s na odpowiedź.

@@ -254,7 +254,11 @@ async function create(draft: AutomationDraft): Promise<void> {
     await client.v1("POST", rule ? "/rules" : "/schedules", body);
     log.info("app", "schedule.created", `Schedule “${draft.name}” created`, { trigger: draft.trigger, action: draft.action });
   } catch (error) {
-    log.error("app", "schedule.create_failed", `Couldn't create a schedule: ${error}`, { body });
+    // Not the body: a schedule's command address holds the application key.
+    log.error("app", "schedule.create_failed", `Couldn't create a schedule: ${error}`, {
+      trigger: draft.trigger,
+      action: draft.action,
+    });
     throw error;
   } finally {
     await schedules.refresh();

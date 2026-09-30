@@ -395,7 +395,7 @@ mod tests {
     #[test]
     fn draft_body_matches_bridge_format() {
         let draft = AreaDraft {
-            name: "Hue Tray – Music".into(),
+            name: "HueFL – Music".into(),
             kind: "music".into(),
             members: vec![AreaMember { service_id: "ent-a".into(), position: Position { x: -0.5, y: 0.8, z: 0.0 } }],
         };

@@ -92,7 +92,7 @@ mod pulse {
         let attr = BufferAttr { maxlength: u32::MAX, tlength: u32::MAX, prebuf: u32::MAX, minreq: u32::MAX, fragsize: bytes };
         let found = devices::default_devices().map_err(|problem| format!("Can't capture audio: {problem:?}"))?;
         let device = devices::capture_device(input == AudioInput::Microphone, &found)?;
-        let simple = Simple::new(None, "Hue Tray", Direction::Record, device.as_deref(), "Light sync", &spec, None, Some(&attr))
+        let simple = Simple::new(None, "HueFL", Direction::Record, device.as_deref(), "Light sync", &spec, None, Some(&attr))
             .map_err(|e| format!("Can't capture audio: {e}"))?;
         Ok((simple, device.unwrap_or_else(|| "default input".into())))
     }

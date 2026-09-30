@@ -130,6 +130,16 @@ describe("parsing", () => {
     expect(parseRules({ "1": { name: "Motion", conditions: [], actions: [] } })).toEqual([]);
   });
 
+  it("still reads entries from before the rename (HT·)", () => {
+    const [parsed] = parseSchedules({
+      "4": { name: "HT·Office", command: { address: "/api/x/groups/81/action", body: { on: false } }, localtime: "PT00:10:00" },
+    });
+    expect(parsed).toMatchObject({ id: "4", name: "Office", groupId: "81" });
+    // …and writes the new prefix.
+    const body = buildSchedule({ groupId: "81", name: "Office", trigger: { kind: "timer", minutes: 10 }, action: { on: false } }, KEY);
+    expect(body.name).toBe("HF·Office");
+  });
+
   it("names are capped at the bridge's 32 characters", () => {
     const body = buildSchedule(
       { groupId: "1", name: "A very long room name that goes on", trigger: { kind: "timer", minutes: 1 }, action: { on: false } },

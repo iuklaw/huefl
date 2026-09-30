@@ -6,7 +6,7 @@
 // restart. Entries from JS arrive in batches through `log_write`.
 //
 // Storage: a ring buffer of the last MAX_ENTRIES in memory, plus JSON Lines in
-// $XDG_STATE_HOME/hue-tray/hue-tray.log (mode 600), rotated to `.log.1` at
+// $XDG_STATE_HOME/huefl/huefl.log (mode 600), rotated to `.log.1` at
 // MAX_FILE_BYTES. The buffer is seeded from the file on start, so the previous
 // session is visible too. Every new entry is emitted to the UI as "log-entry".
 //
@@ -46,16 +46,7 @@ pub struct LogStore {
 }
 
 fn default_log_path() -> PathBuf {
-    let base = std::env::var("XDG_STATE_HOME")
-        .ok()
-        .filter(|p| p.starts_with('/'))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into()))
-                .join(".local")
-                .join("state")
-        });
-    base.join("hue-tray").join("hue-tray.log")
+    crate::paths::state_dir().join(crate::paths::LOG_FILE)
 }
 
 fn open_log(path: &PathBuf) -> Option<File> {
@@ -172,6 +163,17 @@ pub fn log_write(app: AppHandle, entries: Vec<Entry>) {
 #[tauri::command]
 pub fn log_read(store: State<'_, LogStore>) -> Vec<Entry> {
     store.ring.lock().unwrap().iter().cloned().collect()
+}
+
+/// Everything on disk, oldest first: the rotated file, then the current one
+/// (JSON lines; up to ~2 × MAX_FILE_BYTES). For bug reports.
+pub fn read_all(store: &LogStore) -> String {
+    let _writing = store.file.lock().unwrap(); // not mid-rotation
+    [store.path.with_extension("log.1"), store.path.clone()]
+        .iter()
+        .filter_map(|path| fs::read_to_string(path).ok())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 #[tauri::command]

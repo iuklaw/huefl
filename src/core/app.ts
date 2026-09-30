@@ -629,7 +629,7 @@ void listen<{ id: string; on: boolean }>("tray-room-changed", ({ payload }) => {
 export async function start(): Promise<void> {
   try {
     settings = await loadSettings();
-    log.info("app", "app.start", `Hue Tray ${await getVersion()} started`, {
+    log.info("app", "app.start", `HueFL ${await getVersion()} started`, {
       userAgent: navigator.userAgent,
       locale,
       paired: Boolean(settings.applicationKey),

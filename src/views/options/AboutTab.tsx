@@ -1,9 +1,13 @@
-import { Lightbulb } from "lucide-react";
+import { useState } from "react";
+import { Bug, Lightbulb } from "lucide-react";
+import { BugReportDialog } from "@/components/BugReportDialog";
+import { Button } from "@/components/ui/button";
 import { useAppVersion } from "@/core/useAppVersion";
 import { t } from "@/i18n";
 
 export function AboutTab() {
   const version = useAppVersion();
+  const [reporting, setReporting] = useState(false);
 
   return (
     <div className="space-y-4 py-4 text-center">
@@ -12,15 +16,24 @@ export function AboutTab() {
       </div>
       <div>
         <h2 className="font-semibold">{t("app.product_name")}</h2>
+        <p className="text-xs text-muted-foreground">{t("about.subtitle")}</p>
         {version && (
           <p className="text-xs text-muted-foreground">{t("about.version", { version })}</p>
         )}
       </div>
       <p className="text-sm">{t("about.description")}</p>
-      <div className="space-y-2 rounded-lg bg-card p-3 text-left text-xs text-muted-foreground">
-        <p>{t("about.local")}</p>
-        <p>{t("about.cloud")}</p>
-      </div>
+
+      <Button
+        variant="outline"
+        size="sm"
+        className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        onClick={() => setReporting(true)}
+      >
+        <Bug />
+        {t("report.open")}
+      </Button>
+
+      <BugReportDialog open={reporting} onOpenChange={setReporting} />
     </div>
   );
 }

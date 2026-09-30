@@ -10,14 +10,7 @@ use std::path::PathBuf;
 use serde::Deserialize;
 
 fn config_path() -> PathBuf {
-    let base = std::env::var("XDG_CONFIG_HOME")
-        .ok()
-        .filter(|p| p.starts_with('/'))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into())).join(".config")
-        });
-    base.join("hue-tray").join("config.json")
+    crate::paths::config_dir().join("config.json")
 }
 
 /// The subset of settings the tray needs to talk to the bridge on its own.

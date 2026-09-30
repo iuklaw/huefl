@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    hue_tray_lib::run()
+    huefl_lib::run()
 }

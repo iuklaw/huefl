@@ -53,7 +53,7 @@ pub async fn sync_overview(
     let lights = access.sync_lights(&hue).await?;
     let mut areas = access.areas(&hue).await?;
     // Development aid: see the "no sync area" checklist on a bridge that has one.
-    if cfg!(debug_assertions) && std::env::var_os("HUE_TRAY_DEV_HIDE_AREAS").is_some() {
+    if cfg!(debug_assertions) && std::env::var_os("HUEFL_DEV_HIDE_AREAS").is_some() {
         areas.clear();
     }
 

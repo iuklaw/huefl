@@ -1,5 +1,5 @@
 // Persistent settings: bridge pairing plus user preferences.
-// The file follows XDG (~/.config/hue-tray/config.json, mode 600). Reading and
+// The file follows XDG (~/.config/huefl/config.json, mode 600). Reading and
 // writing happen on the Rust side (src-tauri/src/config.rs), because the
 // webview has no file system access. Rust reads the bridge fields too (the
 // tray talks to the bridge on its own) and ignores the rest.

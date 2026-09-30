@@ -7,10 +7,19 @@
 //   countdown               schedule  localtime "PT00:15:00", autodelete
 //   sunrise / sunset        rule on the Daylight sensor (see SUN_LEAD)
 //
-// Ours are recognised by the name prefix; other apps' entries are left alone.
+// Ours are recognised by the name prefix (HF·, or HT· from before the
+// rename); other apps' entries are left alone.
 
-/** Name prefix of everything Hue Tray creates on the bridge (names: max 32 chars). */
-export const PREFIX = "HT·";
+/** Name prefix of everything HueFL creates on the bridge (names: max 32 chars). */
+export const PREFIX = "HF·";
+/** From before the rename (Hue Tray): still ours, rewritten as HF· when edited. */
+const LEGACY_PREFIXES = ["HT·"];
+
+/** The name without our prefix, or null if the entry isn't ours. */
+function ownName(name: string | undefined): string | null {
+  const prefix = [PREFIX, ...LEGACY_PREFIXES].find((p) => name?.startsWith(p));
+  return prefix ? name!.slice(prefix.length) : null;
+}
 const NAME_MAX = 32;
 
 /**
@@ -104,7 +113,7 @@ export function buildSchedule(draft: AutomationDraft, key: string): Record<strin
   const once = draft.trigger.kind === "timer" || draft.trigger.days === 0;
   return {
     name: automationName(draft.name),
-    description: "Hue Tray",
+    description: "HueFL",
     command: {
       address: `/api/${key}/groups/${draft.groupId}/action`,
       method: "PUT",
@@ -160,7 +169,8 @@ type V1Rule = {
 /** Ours from GET /schedules (id → schedule); anything unreadable is skipped. */
 export function parseSchedules(all: Record<string, V1Schedule>): Automation[] {
   return Object.entries(all).flatMap(([id, s]) => {
-    if (!s.name?.startsWith(PREFIX)) return [];
+    const name = ownName(s.name);
+    if (name === null) return [];
     const groupId = s.command?.address?.match(/\/groups\/(\d+)\/action$/)?.[1];
     const trigger = parseLocaltime(s.localtime ?? "", s.starttime);
     if (!groupId || !trigger) return [];
@@ -172,7 +182,7 @@ export function parseSchedules(all: Record<string, V1Schedule>): Automation[] {
         trigger,
         action: parseAction(s.command?.body ?? {}),
         enabled: s.status !== "disabled",
-        name: s.name.slice(PREFIX.length),
+        name,
       },
     ];
   });
@@ -181,7 +191,8 @@ export function parseSchedules(all: Record<string, V1Schedule>): Automation[] {
 /** Ours from GET /rules. */
 export function parseRules(all: Record<string, V1Rule>): Automation[] {
   return Object.entries(all).flatMap(([id, r]) => {
-    if (!r.name?.startsWith(PREFIX)) return [];
+    const name = ownName(r.name);
+    if (name === null) return [];
     const conditions = r.conditions ?? [];
     const daylight = conditions.find((c) => c.address?.endsWith("/state/daylight") && c.operator === "eq");
     const change = conditions.find((c) => c.address?.endsWith("/state/daylight") && (c.operator === "dx" || c.operator === "ddx"));
@@ -202,7 +213,7 @@ export function parseRules(all: Record<string, V1Rule>): Automation[] {
         },
         action: parseAction(r.actions?.[0]?.body ?? {}),
         enabled: r.status !== "disabled",
-        name: r.name.slice(PREFIX.length),
+        name,
       },
     ];
   });

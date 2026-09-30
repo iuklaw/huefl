@@ -155,7 +155,7 @@ export type PairResult = {
   certFingerprint: string | null;
 };
 
-export async function pairWithBridge(ip: string, appName = "hue-tray"): Promise<PairResult> {
+export async function pairWithBridge(ip: string, appName = "huefl"): Promise<PairResult> {
   const pin: TlsPin = { expected: null, seen: null };
   const device = await invoke<string>("device_name").catch(() => "linux");
   const res = await hueFetch(

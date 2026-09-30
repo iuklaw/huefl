@@ -2,6 +2,8 @@ mod config;
 mod hue;
 mod i18n;
 mod logs;
+mod paths;
+mod report;
 mod sync;
 mod tray;
 mod window;
@@ -14,12 +16,24 @@ fn quit(app: AppHandle) {
 }
 
 pub fn run() {
+    // Before anything reads them: bring config and logs over from the old name.
+    let migrated = paths::migrate_legacy();
     tauri::Builder::default()
         .manage(hue::HueState::default())
         .manage(window::WindowPlacement::default())
         .manage(sync::manager::SyncManager::default())
-        .setup(|app| {
+        .setup(move |app| {
             logs::init(app.handle());
+            if !migrated.is_empty() {
+                logs::write(
+                    app.handle(),
+                    "info",
+                    "app",
+                    "app.migrated",
+                    "Moved settings and logs from Hue Tray to HueFL",
+                    Some(serde_json::json!({ "to": migrated })),
+                );
+            }
             tray::init(app.handle())?;
             Ok(())
         })
@@ -59,6 +73,9 @@ pub fn run() {
             logs::log_read,
             logs::log_clear,
             logs::log_path,
+            report::bug_report_system_info,
+            report::bug_report_logs,
+            report::bug_report_send,
         ])
         .build(tauri::generate_context!())
         .expect("failed to start the application")

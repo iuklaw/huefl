@@ -1,6 +1,6 @@
 {
   "app.name": "Hue",
-  "app.product_name": "Hue Tray",
+  "app.product_name": "HueFL",
 
   "titlebar.options": "Options",
   "titlebar.minimize": "Minimize",
@@ -74,7 +74,7 @@
   "light.use_color": "Use color {hex}",
 
   "pairing.title": "Connect your Hue bridge",
-  "pairing.subtitle": "Hue Tray talks to the bridge directly on your local network.",
+  "pairing.subtitle": "HueFL talks to the bridge directly on your local network.",
   "pairing.step_find": "Find your bridge",
   "pairing.search": "Search the network",
   "pairing.searching": "Searching…",
@@ -93,8 +93,8 @@
   "pairing.source.cloud": "Philips discovery",
   "pairing.source.manual": "Manual",
 
-  "close.title": "Close Hue Tray?",
-  "close.description": "Hue Tray can keep running in the system tray, so your lights stay one click away.",
+  "close.title": "Close HueFL?",
+  "close.description": "HueFL can keep running in the system tray, so your lights stay one click away.",
   "close.to_tray": "Minimize to tray",
   "close.quit": "Quit",
   "close.remember": "Don't ask again",
@@ -132,13 +132,13 @@
   "bridge.field.firmware": "Firmware",
   "bridge.field.timezone": "Time zone",
   "bridge.field.fingerprint": "Certificate fingerprint",
-  "bridge.fingerprint_hint": "Pinned on first connection. If it ever changes, Hue Tray refuses to connect.",
+  "bridge.fingerprint_hint": "Pinned on first connection. If it ever changes, HueFL refuses to connect.",
   "bridge.reconnect": "Reconnect",
   "bridge.pair_other": "Pair a different bridge",
   "bridge.pair_first": "Pair a bridge",
   "bridge.forget": "Forget bridge",
   "bridge.forget_title": "Forget this bridge?",
-  "bridge.forget_description": "Hue Tray will disconnect and delete the stored key. To use it again, you'll need to press the button on the bridge.",
+  "bridge.forget_description": "HueFL will disconnect and delete the stored key. To use it again, you'll need to press the button on the bridge.",
   "bridge.forget_confirm": "Forget",
 
   "lights.empty": "No lights found.",
@@ -173,13 +173,12 @@
 
   "about.description": "Control Philips Hue lights from the system tray.",
   "about.version": "Version {version}",
-  "about.local": "Talks to your bridge over the local network only (CLIP v2). The bridge certificate is pinned on first use, like SSH.",
-  "about.cloud": "Philips cloud discovery is used only as a fallback when searching for bridges.",
+  "about.subtitle": "Hue for Linux",
 
   "nav.lights": "Lights",
   "nav.sync": "Sync",
   "sync.setup_title": "Set up light sync",
-  "sync.setup_hint": "Hue Tray streams colors to your lights in real time. A few things are needed first:",
+  "sync.setup_hint": "HueFL streams colors to your lights in real time. A few things are needed first:",
   "sync.load_failed": "Couldn't load the sync setup.",
   "sync.check.bridge.ok": "Hue Bridge supports light sync",
   "sync.check.bridge.warning": "Couldn't identify the bridge model",
@@ -320,6 +319,18 @@
   "tray.sync_start": "Start sync",
   "tray.sync_stop": "Stop sync",
   "tray.quit": "Quit",
+
+  "report.open": "Report a bug",
+  "report.title": "Report a bug",
+  "report.hint": "Tell us what went wrong. You choose what else goes with it — and can see all of it below.",
+  "report.description": "What happened?",
+  "report.description_placeholder": "What did you do, what did you expect, and what happened instead?",
+  "report.include_logs": "Include app logs",
+  "report.include_system": "Include system info",
+  "report.preview": "See what will be sent",
+  "report.send": "Send",
+  "report.close": "Close",
+  "report.sent": "Sent — thank you! Report {id}.",
 
   "duration.minutes": "{m} min",
   "duration.hours": "{h} h",

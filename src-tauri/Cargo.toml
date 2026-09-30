@@ -1,11 +1,11 @@
 [package]
-name = "hue-tray"
+name = "huefl"
 version = "0.1.0"
-description = "Control Philips Hue lights from the system tray"
+description = "HueFL — Philips Hue for Linux"
 edition = "2021"
 
 [lib]
-name = "hue_tray_lib"
+name = "huefl_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

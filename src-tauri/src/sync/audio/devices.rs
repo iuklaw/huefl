@@ -28,6 +28,9 @@ pub struct AudioDevices {
     /// Recording from a Bluetooth headset's microphone switches it to its
     /// low-quality call mode — worth a hint in the UI.
     pub microphone_bluetooth: bool,
+    /// "PulseAudio (on PipeWire 0.3.48) 15.0.0" — for bug reports.
+    #[serde(skip)]
+    pub server: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -104,7 +107,7 @@ mod pulse {
     impl Session {
         fn connect() -> Result<Self, AudioProblem> {
             let mainloop = Mainloop::new().ok_or(AudioProblem::NoServer)?;
-            let mut context = Context::new(&mainloop, "Hue Tray").ok_or(AudioProblem::NoServer)?;
+            let mut context = Context::new(&mainloop, "HueFL").ok_or(AudioProblem::NoServer)?;
             // No autospawn: asking must not start a sound server as a side effect.
             context
                 .connect(None, FlagSet::NOAUTOSPAWN, None)
@@ -150,23 +153,29 @@ mod pulse {
         let mut session = Session::connect()?;
         let introspect = session.context.introspect();
 
-        let defaults: Rc<RefCell<(Option<String>, Option<String>)>> = Rc::default();
+        type Defaults = (Option<String>, Option<String>, Option<String>);
+        let defaults: Rc<RefCell<Defaults>> = Rc::default();
         let op = introspect.get_server_info({
             let defaults = defaults.clone();
             move |info| {
+                let server = info.server_name.as_ref().map(|name| match &info.server_version {
+                    Some(version) => format!("{name} {version}"),
+                    None => name.to_string(),
+                });
                 *defaults.borrow_mut() = (
                     info.default_sink_name.as_ref().map(|n| n.to_string()),
                     info.default_source_name.as_ref().map(|n| n.to_string()),
+                    server,
                 );
             }
         });
         session.wait(&op)?;
-        let (sink, source) = defaults.borrow().clone();
+        let (sink, source, server) = defaults.borrow().clone();
         let Some(sink) = sink else {
             return Err(AudioProblem::NoOutput);
         };
 
-        let mut devices = AudioDevices { system_id: Some(sink.clone()), microphone_id: source.clone(), ..Default::default() };
+        let mut devices = AudioDevices { system_id: Some(sink.clone()), microphone_id: source.clone(), server, ..Default::default() };
 
         let label: Rc<RefCell<Option<String>>> = Rc::default();
         let monitor: Rc<RefCell<Option<String>>> = Rc::default();
