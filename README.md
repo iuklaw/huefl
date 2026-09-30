@@ -201,8 +201,8 @@ X-GNOME-Autostart-enabled=true
 
 (`Exec` po instalacji paczki `.deb`; dla AppImage podaj pelna sciezke do pliku.)
 
-Aplikacja startuje cicho do traya, jesli mostek jest juz sparowany; okno
-pokazuje sie tylko przy pierwszym uruchomieniu.
+Aplikacja startuje w oknie na srodku ekranu; zamkniecie okna (albo X z wyborem
+"tray") chowa ja do traya.
 
 ## Co mozna dolozyc
 

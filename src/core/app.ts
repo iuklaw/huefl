@@ -645,9 +645,9 @@ export async function start(): Promise<void> {
       scheduleLocation: settings.scheduleLocation,
     });
 
-    // Show the window only when there is no bridge yet — otherwise the app
-    // starts quietly in the tray (the window is created hidden).
-    if (!settings.applicationKey) await showWindow();
+    // The app starts in its window, centered (tauri.conf.json). It is created
+    // hidden and shown here, once the UI can paint — no blank flash.
+    await showWindow();
 
     await connect();
   } catch (error) {
