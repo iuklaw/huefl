@@ -18,14 +18,14 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppState } from "@/core/useAppState";
-import { bridgeNow, scheduleLocation, schedules, useSchedules } from "@/core/schedules";
+import { bridgeNow, scheduleLocation, schedules, useSchedules, type TimerMode } from "@/core/schedules";
 import { EVERY_DAY, SUN_LEAD, type AutomationDraft, type Trigger } from "@/hue/schedules";
 import { t } from "@/i18n";
 import { nextSunEvent } from "@/lib/sun";
 import { formatWhen, zoneOffset } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { DayChips, Field, Segmented, TimeField } from "./controls";
-import { clampMinutes, describeSun, formatDuration, MAX_TIMER_MINUTES } from "./describe";
+import { DayChips, DurationField, Field, Segmented, TimeField } from "./controls";
+import { describeSun, formatDuration, MAX_TIMER_MINUTES } from "./describe";
 import { closeScheduleEditor, useEditorRequest } from "./editor-store";
 
 type Kind = Trigger["kind"];
@@ -38,8 +38,8 @@ type Form = {
   timeDays: number;
   random: boolean;
   timerMinutes: number;
-  /** Timer: "on for" (on now, off after) or "off in". */
-  timerOn: boolean;
+  /** Timer: off in N, off for N (off now, on after), on in N, on for N (on now, off after). */
+  timerMode: TimerMode;
   sunEvent: "sunrise" | "sunset";
   offset: number;
   sunDays: number;
@@ -60,8 +60,6 @@ export function ScheduleEditor() {
   const [form, setForm] = useState<Form | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** The minutes field while it's being typed in (may be empty for a moment). */
-  const [minutesText, setMinutesText] = useState<string | null>(null);
 
   const schedulable = rooms.filter((r) => r.v1GroupId);
 
@@ -83,7 +81,7 @@ export function ScheduleEditor() {
       timeDays: EVERY_DAY,
       random: false,
       timerMinutes: 15,
-      timerOn: !room?.on,
+      timerMode: room?.on ? "off_in" : "on_for",
       sunEvent: "sunset",
       offset: 0,
       sunDays: EVERY_DAY,
@@ -103,7 +101,7 @@ export function ScheduleEditor() {
       if (trigger.kind === "time") {
         Object.assign(base, { hour: trigger.hour, minute: trigger.minute, timeDays: trigger.days, random: Boolean(trigger.randomMinutes) });
       } else if (trigger.kind === "timer") {
-        Object.assign(base, { timerMinutes: trigger.minutes, timerOn: false });
+        Object.assign(base, { timerMinutes: trigger.minutes, timerMode: existing.action.on ? "on_in" : "off_in" });
       } else {
         Object.assign(base, { sunEvent: trigger.event, offset: trigger.offsetMinutes, sunDays: trigger.days });
       }
@@ -151,7 +149,7 @@ export function ScheduleEditor() {
     setError(null);
     try {
       if (form.kind === "timer") {
-        await schedules.startTimer(room, form.timerMinutes, form.timerOn);
+        await schedules.startTimer(room, form.timerMinutes, form.timerMode);
       } else {
         const draft: AutomationDraft = {
           groupId: room.v1GroupId,
@@ -192,7 +190,7 @@ export function ScheduleEditor() {
 
   return (
     <Dialog open onOpenChange={(open) => !open && closeScheduleEditor()}>
-      <DialogContent className="max-h-[90vh] gap-4 overflow-y-auto sm:max-w-sm">
+      <DialogContent className="gap-4 sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-sm">
             {t(request.existing ? "schedule.editor.title_edit" : "schedule.editor.title_new")}
@@ -250,13 +248,15 @@ export function ScheduleEditor() {
             <div className="space-y-3 pt-1">
               <Segmented
                 options={[
-                  { value: "off", label: t("schedule.editor.timer_off") },
-                  { value: "on", label: t("schedule.editor.timer_on") },
+                  { value: "off_in", label: t("schedule.editor.timer_off") },
+                  { value: "off_for", label: t("schedule.editor.timer_off_for") },
+                  { value: "on_in", label: t("schedule.editor.timer_on_in") },
+                  { value: "on_for", label: t("schedule.editor.timer_on") },
                 ]}
-                value={form.timerOn ? "on" : "off"}
-                onChange={(v) => update({ timerOn: v === "on" })}
+                value={form.timerMode}
+                onChange={(timerMode) => update({ timerMode })}
               />
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap justify-center gap-1">
                 {TIMER_PRESETS.map((minutes) => (
                   <Button
                     key={minutes}
@@ -268,36 +268,11 @@ export function ScheduleEditor() {
                   </Button>
                 ))}
               </div>
-              <div className="flex items-center gap-3">
-                <Slider
-                  min={1}
-                  max={240}
-                  value={[Math.min(240, form.timerMinutes)]}
-                  onValueChange={([timerMinutes]) => update({ timerMinutes: timerMinutes! })}
-                  aria-label={t("schedule.editor.duration")}
-                />
-                {/* Typed-in minutes may go past the slider (up to 12 h). */}
-                <label className="flex shrink-0 items-center gap-1 text-xs">
-                  <input
-                    type="number"
-                    min={1}
-                    max={MAX_TIMER_MINUTES}
-                    value={minutesText ?? String(form.timerMinutes)}
-                    onChange={(event) => {
-                      setMinutesText(event.target.value);
-                      if (Number(event.target.value) > 0) update({ timerMinutes: clampMinutes(Number(event.target.value)) });
-                    }}
-                    onBlur={() => setMinutesText(null)}
-                    onFocus={(event) => event.target.select()}
-                    aria-label={t("schedule.custom_minutes")}
-                    className="h-7 w-14 rounded-md border border-input bg-transparent px-1 text-center tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                  <span className="text-muted-foreground">{t("schedule.minutes_unit")}</span>
-                </label>
-              </div>
-              {form.timerMinutes >= 60 && (
-                <p className="text-right text-[11px] text-muted-foreground">= {formatDuration(form.timerMinutes)}</p>
-              )}
+              <DurationField
+                minutes={form.timerMinutes}
+                maxMinutes={MAX_TIMER_MINUTES}
+                onChange={(timerMinutes) => update({ timerMinutes })}
+              />
             </div>
           )}
 
@@ -388,7 +363,7 @@ export function ScheduleEditor() {
           </p>
         )}
 
-        <DialogFooter className="gap-2 sm:justify-between">
+        <DialogFooter className="justify-between">
           {request.existing ? (
             <Button variant="ghost" size="sm" className="text-destructive" disabled={saving} onClick={() => void remove()}>
               {t("schedule.editor.delete")}

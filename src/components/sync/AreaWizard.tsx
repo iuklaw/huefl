@@ -112,7 +112,7 @@ export function AreaWizard({ open, onOpenChange, syncLights, area, onSaved }: Pr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>
             {area ? t("sync.area.edit_title") : t("sync.area.create_title")}
@@ -324,19 +324,13 @@ function LayoutEditor({
       <p className="text-xs text-muted-foreground">{t("sync.area.layout_hint")}</p>
 
       <div className="flex gap-1.5">
-        {/* Ruler: distance from the screen */}
-        <div className="flex w-14 shrink-0 flex-col justify-between py-0.5 text-right text-[9px] leading-tight text-muted-foreground">
-          <span>{t("sync.area.scale.at_screen")}</span>
-          <span>{t("sync.area.scale.halfway")}</span>
-          <span>{t("sync.area.scale.you")}</span>
-        </div>
-
         <div className="min-w-0 flex-1">
+          {/* Full width, but only so tall: Back / Save stay in view. */}
           <div
             ref={box}
             onPointerMove={move}
             onPointerUp={() => setDragging(null)}
-            className="relative aspect-square touch-none rounded-lg border border-border bg-muted/40 select-none"
+            className="relative h-[min(30vh,220px)] touch-none rounded-lg border border-border bg-muted/40 select-none"
           >
             {/* Grid every 0.5 units; the center lines stronger */}
             {[25, 50, 75].map((pct) => (
@@ -386,7 +380,7 @@ function LayoutEditor({
                     style={{ backgroundColor: light.color ? toCss(light.color) : "var(--primary)" }}
                     aria-hidden
                   />
-                  <span className="max-w-24 truncate rounded bg-background/80 px-1 text-[10px] leading-4">
+                  <span className="max-w-20 truncate rounded bg-background/80 px-1 text-[10px] leading-4">
                     {light.name}
                   </span>
                 </div>
@@ -400,6 +394,13 @@ function LayoutEditor({
             <span>{t("sync.area.scale.center")}</span>
             <span>{t("sync.area.scale.right")}</span>
           </div>
+        </div>
+
+        {/* Ruler: distance from the screen (the board's height, not the labels below) */}
+        <div className="mb-4 flex w-14 shrink-0 flex-col justify-between py-0.5 text-[9px] leading-tight text-muted-foreground">
+          <span>{t("sync.area.scale.at_screen")}</span>
+          <span>{t("sync.area.scale.halfway")}</span>
+          <span>{t("sync.area.scale.you")}</span>
         </div>
       </div>
 

@@ -65,7 +65,7 @@ export function LocationDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] gap-3 overflow-y-auto sm:max-w-md">
+      <DialogContent className="gap-3 sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-sm">{t("schedule.location.title")}</DialogTitle>
           <DialogDescription className="text-xs">{t("schedule.location.hint")}</DialogDescription>
@@ -121,7 +121,7 @@ export function LocationDialog({ open, onOpenChange }: Props) {
           </p>
         )}
 
-        <DialogFooter className="gap-2 sm:justify-between">
+        <DialogFooter className="justify-between">
           <Button
             variant="ghost"
             size="sm"

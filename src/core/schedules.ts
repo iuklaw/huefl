@@ -22,6 +22,8 @@ import { localTimeZone, zoneOffset } from "@/lib/time";
 import { zoneLocation } from "@/lib/zones";
 import type { RoomView, ScheduleLocation } from "@/types";
 
+export type TimerMode = "off_in" | "off_for" | "on_in" | "on_for";
+
 export type SchedulesState = {
   automations: Automation[];
   loaded: boolean;
@@ -143,19 +145,24 @@ export const schedules = {
   },
 
   /**
-   * "Turn off in 15 min" (`on: false`) or "on for 20 min" (`on: true`: on now,
-   * off after). A room has one timer at a time: a new one replaces it.
+   * A countdown on the bridge for a room:
+   *   "off_in"   turn off in N min
+   *   "off_for"  off now, on after N min
+   *   "on_in"    turn on in N min
+   *   "on_for"   on now, off after N min
+   * A room has one timer at a time: a new one replaces it.
    */
-  async startTimer(room: RoomView, minutes: number, on: boolean): Promise<void> {
+  async startTimer(room: RoomView, minutes: number, mode: TimerMode): Promise<void> {
     await replaceTimer(room);
-    if (on && !room.on) await actions.setRoom({ id: room.id, on: true });
+    if (mode === "on_for" && !room.on) await actions.setRoom({ id: room.id, on: true });
+    if (mode === "off_for" && room.on) await actions.setRoom({ id: room.id, on: false });
     await create({
       groupId: room.v1GroupId!,
       name: room.name,
       trigger: { kind: "timer", minutes },
-      action: { on: false },
+      action: { on: mode === "on_in" || mode === "off_for" },
     });
-    log.info("app", "schedule.timer", `${room.name}: ${on ? "on for" : "off in"} ${minutes} min`);
+    log.info("app", "schedule.timer", `${room.name}: ${mode.replace("_", " ")} ${minutes} min`);
   },
 
   /** Adds minutes to a running timer (the bridge can't: it's recreated). */

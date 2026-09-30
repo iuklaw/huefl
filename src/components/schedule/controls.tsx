@@ -114,6 +114,42 @@ export function TimeField({
   );
 }
 
+/** A length of time as H : MM, looking like TimeField; kept within 1 min … `maxMinutes`. */
+export function DurationField({
+  minutes,
+  maxMinutes,
+  onChange,
+}: {
+  minutes: number;
+  maxMinutes: number;
+  onChange: (minutes: number) => void;
+}) {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const set = (total: number) => onChange(Math.min(maxMinutes, Math.max(1, total)));
+  return (
+    <div className="flex items-center justify-center gap-2">
+      <Stepper
+        label={t("schedule.editor.hours")}
+        value={hours}
+        max={Math.floor(maxMinutes / 60)}
+        onChange={(h) => set(h * 60 + rest)}
+        step={() => set(minutes + 60)}
+        back={() => set(minutes - 60)}
+      />
+      <span className="text-2xl font-semibold tabular-nums text-muted-foreground">:</span>
+      <Stepper
+        label={t("schedule.editor.minutes")}
+        value={rest}
+        max={59}
+        onChange={(m) => set(hours * 60 + m)}
+        step={() => set(minutes + 5)}
+        back={() => set(minutes - 5)}
+      />
+    </div>
+  );
+}
+
 function Stepper({
   label,
   value,
