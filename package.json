@@ -42,5 +42,7 @@
     "vite": "^8.3.1",
     "vitest": "^5.0.2",
     "world-atlas": "^2.0.2"
-  }
+  },
+  "license": "MIT",
+  "repository": "github:iuklaw/huefl"
 }

@@ -347,7 +347,7 @@
   "update.restart": "Restart now",
   "update.restart_later": "Later",
   "update.failed": "The update couldn't be installed:",
-  "update.manual": "You can also download it from the project's GitHub Releases page.",
+  "update.manual": "You can also download it from github.com/iuklaw/huefl/releases.",
   "update.password_hint": "Installed the .deb package? Your system will ask for your password.",
   "update.check": "Check for updates",
   "update.checking": "Checking for updates…",
