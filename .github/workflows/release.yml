@@ -2,11 +2,6 @@
 # AppImage + .deb, signed for the in-app updater, plus latest.json — as a
 # draft GitHub release to check and publish by hand.
 #
-# Ubuntu 22.04 on purpose: its glibc (2.35) is the oldest the app supports,
-# so the build runs on 22.04 and anything newer (incl. SteamOS).
-#
-# Repository secrets: TAURI_SIGNING_PRIVATE_KEY (the content of
-# ~/.tauri/huefl.key) and TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
 
 name: Release
 
