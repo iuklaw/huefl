@@ -4,6 +4,14 @@ Control your Philips Hue lights and sync them with your music and your screen. H
 
 Built with [Tauri 2](https://tauri.app) (Rust + the system webview) and React.
 
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/lights.png" width="260" alt="Lights tab: a room card with brightness, saved color presets, the color of the day and popular palettes"><br><sub>Rooms, presets and palettes</sub></td>
+    <td align="center"><img src="docs/screenshots/sync-music.png" width="260" alt="Sync tab in Music mode with a live spectrum of the playing audio"><br><sub>Music sync</sub></td>
+    <td align="center"><img src="docs/screenshots/sync-screen.png" width="260" alt="Sync tab in Screen mode with a monitor preview showing where each light looks"><br><sub>Screen sync</sub></td>
+  </tr>
+</table>
+
 ## Features
 
 - **Rooms and lights** - on/off, brightness, color wheel and white temperature, per room or per light; changes made elsewhere (the Hue app, a dimmer switch) show up instantly.
@@ -63,13 +71,30 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#building-from-source).
 2. If you don't have one yet, create a **sync area**: choose its purpose, the lights, and where they stand. Areas made in the Philips Hue app work too.
 3. Choose a mode - **Ambient**, **Music** or **Screen** - the colors and the intensity, then **Start sync**.
 
+<img src="docs/screenshots/sync-area.png" width="260" align="right" alt="The sync area wizard: lights placed around the screen on a top-down grid">
+
 Sync keeps running while the window is in the tray. When it stops, your lights return to how they were.
 
 On Wayland, the first Screen sync asks in a system dialog which screen to share; most desktops remember the choice (**Change screen…** asks again).
 
+<br clear="right">
+
+<details>
+<summary>More screenshots</summary>
+<br>
+<img src="docs/screenshots/sync-ambient.png" width="260" alt="Sync tab in Ambient mode, with the lights' current colors shown live">
+</details>
+
 ### Schedules
 
 Use the clock button on a room card for a quick timer, or open **Schedules** for times of day and sunrise / sunset. Set your location there for accurate sun times.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/schedules.png" width="260" alt="Schedules: the sun on its arc with a countdown to sunset, and sunrise and sunset schedules for a room"><br><sub>Schedules and the sun</sub></td>
+    <td align="center"><img src="docs/screenshots/location.png" width="260" alt="Location dialog: a world map with time zone bands, the day/night line and a pin on Warsaw"><br><sub>Location picker</sub></td>
+  </tr>
+</table>
 
 ## Configuration
 
