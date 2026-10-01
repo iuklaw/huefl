@@ -1,4 +1,8 @@
-# HueFL - Philips Hue for Linux
+<p align="center">
+  <img src="src-tauri/icons/128x128@2x.png" width="112" alt="HueFL logo: a light bulb in a cyan-to-amber gradient">
+</p>
+
+<h1 align="center">HueFL - Philips Hue for Linux</h1>
 
 [![Latest release](https://img.shields.io/github/v/release/iuklaw/huefl?sort=semver&label=release)](https://github.com/iuklaw/huefl/releases/latest)
 [![Release date](https://img.shields.io/github/release-date/iuklaw/huefl?label=released)](https://github.com/iuklaw/huefl/releases/latest)

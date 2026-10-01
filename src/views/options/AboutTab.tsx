@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Bug, Lightbulb, RefreshCw } from "lucide-react";
+import { Bug, RefreshCw } from "lucide-react";
+import { HueflLogo } from "@/components/HueflLogo";
 import { BugReportDialog } from "@/components/BugReportDialog";
 import { openUpdateDialog } from "@/components/UpdateDialog";
 import { Button } from "@/components/ui/button";
@@ -17,8 +18,8 @@ export function AboutTab() {
 
   return (
     <div className="space-y-4 py-4 text-center">
-      <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
-        <Lightbulb className="size-7" aria-hidden />
+      <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-muted">
+        <HueflLogo className="size-8" />
       </div>
       <div>
         <h2 className="font-semibold">{t("app.product_name")}</h2>
@@ -66,7 +67,7 @@ function UpdatesSection() {
                   ? t("update.check_failed")
                   : update.status === "unavailable"
                     ? t("update.unavailable")
-                    : t("update.check_hint")}
+                    : null}
         </p>
         {offer ? (
           <Button size="xs" onClick={openUpdateDialog}>

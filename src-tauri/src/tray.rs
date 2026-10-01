@@ -36,6 +36,19 @@ const TRAY_ID: &str = "main";
 const ICON_ON: &[u8] = include_bytes!("../../public/tray-on.png");
 const ICON_OFF: &[u8] = include_bytes!("../../public/tray-off.png");
 
+/// Where the tray library writes the icon files the panel shows. It names them
+/// tray-icon-main-<n>.png with n restarting at 0 on every launch, and GNOME's
+/// AppIndicator extension caches images by path — so after the icons change,
+/// the panel kept showing the old ones. A directory named after the icons'
+/// content gives new paths whenever they change, and the same ones otherwise.
+fn icon_dir() -> std::path::PathBuf {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    (ICON_ON, ICON_OFF).hash(&mut hasher);
+    let base = std::env::var_os("XDG_RUNTIME_DIR").map(std::path::PathBuf::from).unwrap_or_else(std::env::temp_dir);
+    base.join(format!("huefl-tray-{:016x}", hasher.finish()))
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Status {
@@ -85,6 +98,7 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
         .icon(Image::from_bytes(ICON_OFF)?)
         // The app's name from tauri.conf.json (productName), like the window title.
         .tooltip(&app.package_info().name)
+        .temp_dir_path(icon_dir())
         .menu(&menu)
         .on_menu_event(on_menu_event)
         .build(app)?;

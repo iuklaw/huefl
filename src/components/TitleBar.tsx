@@ -2,7 +2,8 @@
 // tauri.conf.json). The bar itself is the drag handle; buttons are not.
 
 import type { ComponentProps } from "react";
-import { ArrowDownToLine, Lightbulb, Minus, Settings, X } from "lucide-react";
+import { ArrowDownToLine, Minus, Settings, X } from "lucide-react";
+import { HueflLogo } from "@/components/HueflLogo";
 import { openUpdateDialog } from "@/components/UpdateDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { actions } from "@/core/app";
@@ -22,7 +23,7 @@ export function TitleBar({ onOptions, onClose }: Props) {
       data-tauri-drag-region
       className="flex h-9 shrink-0 items-center bg-titlebar pl-3 text-titlebar-foreground"
     >
-      <Lightbulb data-tauri-drag-region className="size-4 text-primary" aria-hidden />
+      <HueflLogo data-tauri-drag-region className="size-4" />
       <span data-tauri-drag-region className="ml-2 text-xs font-semibold tracking-wide">
         {t("app.product_name")}
       </span>

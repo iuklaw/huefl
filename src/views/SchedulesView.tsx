@@ -19,10 +19,6 @@ import type { Automation } from "@/hue/schedules";
 import { t } from "@/i18n";
 import { formatCountdown, formatWhen } from "@/lib/time";
 
-/** The bridge's limits (API v1). */
-const MAX_SCHEDULES = 100;
-const MAX_RULES = 250;
-
 export function SchedulesView({ onBack }: { onBack: () => void }) {
   const { rooms } = useAppState();
   const { automations, loading, loaded, error, timeZone, clockOffset } = useSchedules();
@@ -42,10 +38,6 @@ export function SchedulesView({ onBack }: { onBack: () => void }) {
   const byRoom = rooms
     .map((room) => ({ room, items: automations.filter((a) => a.groupId === room.v1GroupId) }))
     .filter((group) => group.items.length > 0);
-  const counts = {
-    schedules: automations.filter((a) => a.source === "schedule").length,
-    rules: automations.filter((a) => a.source === "rule").length,
-  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -113,16 +105,6 @@ export function SchedulesView({ onBack }: { onBack: () => void }) {
 
         </div>
       </ScrollArea>
-
-      {/* Pinned to the bottom; pb-7 clears the app footer, which overlays the window's bottom. */}
-      {loaded && (
-        <p className="shrink-0 border-t border-border bg-background/70 px-3 pt-1.5 pb-7 text-[11px] text-muted-foreground backdrop-blur-sm">
-          {t("schedule.on_bridge", {
-            schedules: `${counts.schedules} / ${MAX_SCHEDULES}`,
-            rules: `${counts.rules} / ${MAX_RULES}`,
-          })}
-        </p>
-      )}
 
       <LocationDialog open={locationOpen} onOpenChange={setLocationOpen} />
     </div>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="HueFL">
+  <defs>
+    <linearGradient id="hf-glass" gradientUnits="userSpaceOnUse" x1="3.5" y1="9.5" x2="12.5" y2="1.5">
+      <stop offset="0"    stop-color="#2ED4F0"/>
+      <stop offset="0.38" stop-color="#8A5CFF"/>
+      <stop offset="0.68" stop-color="#FF5CA8"/>
+      <stop offset="1"    stop-color="#FFB224"/>
+    </linearGradient>
+  </defs>
+  <path d="M 10 9.33 c .13 -.67 .47 -1.13 1 -1.67 .67 -.6 1 -1.47 1 -2.33 A 4 4 0 0 0 4 5.33 c 0 .67 .13 1.47 1 2.33 .47 .47 .87 1 1 1.67" stroke="url(#hf-glass)"/>
+  <path d="M 6 12 h 4" stroke="#8E97A6" opacity="1"/>
+  <path d="M 6.7 14.7 h 2.6" stroke="#8E97A6" opacity="1"/>
+</svg>
