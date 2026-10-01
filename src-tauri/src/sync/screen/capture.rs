@@ -1,5 +1,9 @@
-// Captures one monitor for screen sync on its own thread (X11), keeping the
-// latest coarse grid (zones::Grid) in shared memory for the effect.
+// Captures one monitor for screen sync, keeping the latest coarse grid
+// (zones::Grid) in shared memory for the effect. Two backends:
+//   X11      here, on its own thread (below);
+//   Wayland  the desktop portal + PipeWire (portal.rs), chosen by session.
+//
+// X11:
 //
 // MIT-SHM: the X server writes each frame straight into a shared-memory
 // segment instead of sending megabytes over the socket — a 1080p frame costs
@@ -9,8 +13,6 @@
 // Kept working mid-sync: a resolution / layout change is noticed within 2 s
 // and the capture is set up again; if the display goes away, the grid is
 // cleared (lights dim), `lost` is raised and the thread retries.
-//
-// Wayland is not supported yet: capturing there needs the desktop portal.
 //
 // RAII: dropping a `ScreenSource` stops and joins the thread.
 
@@ -38,6 +40,8 @@ pub enum ScreenEvent {
     Opened(String),
     Lost(String),
     Restored,
+    /// A detail worth a log line (format negotiated, first frame, …).
+    Detail { code: &'static str, message: String, warn: bool },
 }
 
 pub type EventSink = Box<dyn Fn(ScreenEvent) + Send>;
@@ -45,6 +49,38 @@ pub type EventSink = Box<dyn Fn(ScreenEvent) + Send>;
 pub struct ScreenSource {
     stop: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
+    /// Wayland: the portal session and PipeWire thread (stop on drop).
+    #[cfg(feature = "sync-screen-wayland")]
+    _cast: Option<super::portal::Cast>,
+}
+
+/// Starting on Wayland can end with the user declining the portal's dialog.
+#[derive(Debug)]
+pub enum StartError {
+    Cancelled,
+    Failed(String),
+}
+
+/// Wayland session: capture goes through the desktop portal.
+pub fn is_wayland() -> bool {
+    std::env::var("XDG_SESSION_TYPE").is_ok_and(|t| t == "wayland")
+}
+
+/// Why screen sync can't run here, for the readiness list (None: it can).
+pub async fn availability() -> Option<&'static str> {
+    if !cfg!(feature = "sync-screen") {
+        return Some("unsupported");
+    }
+    if is_wayland() {
+        #[cfg(feature = "sync-screen-wayland")]
+        return (!super::portal::available().await).then_some("no_portal");
+        #[cfg(not(feature = "sync-screen-wayland"))]
+        return Some("unsupported");
+    }
+    if std::env::var_os("DISPLAY").is_none() {
+        return Some("no_display");
+    }
+    None
 }
 
 impl Drop for ScreenSource {
@@ -56,19 +92,6 @@ impl Drop for ScreenSource {
     }
 }
 
-/// Why screen sync can't run here, for the readiness list.
-pub fn unavailable_reason() -> Option<&'static str> {
-    if !cfg!(feature = "sync-screen") {
-        return Some("unsupported");
-    }
-    if std::env::var("XDG_SESSION_TYPE").is_ok_and(|t| t == "wayland") {
-        return Some("wayland");
-    }
-    if std::env::var_os("DISPLAY").is_none() {
-        return Some("no_display");
-    }
-    None
-}
 
 #[cfg(feature = "sync-screen")]
 mod x11 {
@@ -307,7 +330,12 @@ mod x11 {
             .map_err(|e| e.to_string())?;
 
         match ready_rx.recv() {
-            Ok(Ok(())) => Ok(ScreenSource { stop, thread: Some(thread) }),
+            Ok(Ok(())) => Ok(ScreenSource {
+                stop,
+                thread: Some(thread),
+                #[cfg(feature = "sync-screen-wayland")]
+                _cast: None,
+            }),
             Ok(Err(e)) => {
                 let _ = thread.join();
                 Err(e)
@@ -334,6 +362,63 @@ impl ScreenSource {
             Err("This build has no screen support (feature sync-screen).".into())
         }
     }
+}
+
+impl ScreenSource {
+    /// Wayland: asks the user which monitor to share (the system dialog,
+    /// unless a remembered choice still holds) and starts receiving it.
+    pub async fn start_portal(
+        grid: Arc<Mutex<Option<Grid>>>,
+        lost: Arc<AtomicBool>,
+        on_event: EventSink,
+    ) -> Result<Self, StartError> {
+        #[cfg(feature = "sync-screen-wayland")]
+        {
+            use super::portal::{self, OpenError};
+            match portal::open(grid, lost, on_event).await {
+                Ok(cast) => Ok(ScreenSource { stop: Arc::default(), thread: None, _cast: Some(cast) }),
+                Err(OpenError::Cancelled) => Err(StartError::Cancelled),
+                Err(OpenError::Failed(e)) => Err(StartError::Failed(e)),
+            }
+        }
+        #[cfg(not(feature = "sync-screen-wayland"))]
+        {
+            let _ = (grid, lost, on_event);
+            Err(StartError::Failed("This build has no Wayland screen support.".into()))
+        }
+    }
+}
+
+/// Wayland: the screen the portal remembers (its size), if the next start
+/// won't ask.
+pub fn shared_screen() -> Option<SharedScreen> {
+    #[cfg(feature = "sync-screen-wayland")]
+    return super::portal::shared_screen().map(|(width, height)| SharedScreen { width, height });
+    #[cfg(not(feature = "sync-screen-wayland"))]
+    None
+}
+
+/// Wayland: "Change screen…" — the portal's dialog now; the answer is
+/// remembered for the next start. Declining keeps the previous choice.
+pub async fn pick_screen() -> Result<Option<SharedScreen>, StartError> {
+    #[cfg(feature = "sync-screen-wayland")]
+    {
+        use super::portal::{self, OpenError};
+        match portal::pick().await {
+            Ok(_) => Ok(shared_screen()),
+            Err(OpenError::Cancelled) => Err(StartError::Cancelled),
+            Err(OpenError::Failed(e)) => Err(StartError::Failed(e)),
+        }
+    }
+    #[cfg(not(feature = "sync-screen-wayland"))]
+    Err(StartError::Failed("This build has no Wayland screen support.".into()))
+}
+
+/// A monitor shared through the portal, as far as it tells: its size.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct SharedScreen {
+    pub width: u32,
+    pub height: u32,
 }
 
 pub fn monitors() -> Result<Vec<Monitor>, String> {

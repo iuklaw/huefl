@@ -66,6 +66,7 @@ pub fn run() {
             sync::sync_status,
             sync::sync_audio_devices,
             sync::sync_monitors,
+            sync::sync_screen_pick,
             sync::sync_create_area,
             sync::sync_update_area,
             sync::sync_delete_area,

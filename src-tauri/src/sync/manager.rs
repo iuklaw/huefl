@@ -19,7 +19,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use super::audio::analyzer::Features;
 use super::audio::capture::{AudioEvent, AudioInput, AudioSource};
 use super::effects::{self, Effect, MusicEffect, MusicStyle, PaletteCycle, ScreenEffect};
-use super::screen::capture::{ScreenEvent, ScreenSource};
+use super::screen::capture::{self as screen_capture, ScreenEvent, ScreenSource, StartError};
 use super::screen::zones::{GRID_COLS, GRID_ROWS};
 use super::entertainment::api::{Area, BridgeAccess};
 use super::entertainment::dtls::DtlsStream;
@@ -49,6 +49,8 @@ struct ScreenPreview {
     cols: usize,
     rows: usize,
     cells: Vec<u8>,
+    /// Width / height of the captured screen.
+    aspect: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -189,20 +191,10 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
         Vec::new()
     };
 
-    if let Err(message) = access.set_streaming(&hue, &area.id, true).await {
-        return fail(app, "start_failed", message);
-    }
-    logs::write(
-        app,
-        "info",
-        "app",
-        "sync.start",
-        format!("Sync started on “{}” ({})", area.name, request.mode),
-        Some(json!({ "area": area.name, "mode": request.mode, "channels": area.channels.len(), "intensity": request.intensity })),
-    );
-
     let palette: Vec<_> = request.palette.iter().filter_map(|h| effects::parse_hex(h)).collect();
     // Inputs are captured for the session's lifetime; dropping them stops capture.
+    // They open before the area starts streaming: on Wayland the user first
+    // picks a screen in the portal's dialog, and may take a while or decline.
     let mut audio: Option<AudioSource> = None;
     let mut screen: Option<ScreenSource> = None;
     let effect: Box<dyn Effect> = match request.mode.as_str() {
@@ -225,10 +217,7 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
             });
             match AudioSource::start(AudioInput::parse(request.source.as_deref()), features.clone(), lost.clone(), on_event) {
                 Ok(source) => audio = Some(source),
-                Err(message) => {
-                    let _ = access.set_streaming(&hue, &area.id, false).await;
-                    return fail(app, "audio", message);
-                }
+                Err(message) => return fail(app, "audio", message),
             }
             Box::new(MusicEffect::new(
                 MusicStyle::parse(request.style.as_deref()),
@@ -248,20 +237,39 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
                     ScreenEvent::Opened(what) => ("info", "sync.screen_opened", format!("Capturing {what}")),
                     ScreenEvent::Lost(why) => ("warn", "sync.screen_lost", format!("Screen capture lost: {why}")),
                     ScreenEvent::Restored => ("info", "sync.screen_restored", "Screen capture is back".to_string()),
+                    ScreenEvent::Detail { code, message, warn } => (if warn { "warn" } else { "debug" }, code, message),
                 };
                 logs::write(&log_app, level, "app", code, message, None);
             });
-            match ScreenSource::start(request.monitor.clone(), grid.clone(), lost.clone(), on_event) {
+            let started = if screen_capture::is_wayland() {
+                ScreenSource::start_portal(grid.clone(), lost.clone(), on_event).await
+            } else {
+                ScreenSource::start(request.monitor.clone(), grid.clone(), lost.clone(), on_event).map_err(StartError::Failed)
+            };
+            match started {
                 Ok(source) => screen = Some(source),
-                Err(message) => {
-                    let _ = access.set_streaming(&hue, &area.id, false).await;
-                    return fail(app, "screen", message);
+                Err(StartError::Cancelled) => {
+                    logs::write(app, "info", "app", "sync.screen_cancelled", "Screen sharing was declined", None);
+                    return fail(app, "screen_cancelled", "Screen sharing was cancelled.".into());
                 }
+                Err(StartError::Failed(message)) => return fail(app, "screen", message),
             }
             Box::new(ScreenEffect::new(request.intensity, request.safe_mode, grid, lost))
         }
         _ => Box::new(PaletteCycle::new(palette, request.intensity)),
     };
+
+    if let Err(message) = access.set_streaming(&hue, &area.id, true).await {
+        return fail(app, "start_failed", message);
+    }
+    logs::write(
+        app,
+        "info",
+        "app",
+        "sync.start",
+        format!("Sync started on “{}” ({})", area.name, request.mode),
+        Some(json!({ "area": area.name, "mode": request.mode, "channels": area.channels.len(), "intensity": request.intensity })),
+    );
 
     let stop = Arc::new(AtomicBool::new(false));
     let thread = std::thread::Builder::new().name("hue-sync-stream".into()).spawn({
@@ -414,8 +422,8 @@ fn stream_loop(
             }
         }
         if visible && sent.is_multiple_of(SCREEN_EVERY) {
-            if let Some(cells) = effect.screen_preview() {
-                let _ = app.emit("sync-screen", ScreenPreview { cols: GRID_COLS, rows: GRID_ROWS, cells });
+            if let Some((cells, aspect)) = effect.screen_preview() {
+                let _ = app.emit("sync-screen", ScreenPreview { cols: GRID_COLS, rows: GRID_ROWS, cells, aspect });
             }
         }
         if stats_since.elapsed() >= STATS_EVERY {

@@ -38,8 +38,13 @@ pub struct SyncOverview {
     status: SyncStatus,
     /// False in builds without the `sync-audio` feature: music mode is off.
     audio_supported: bool,
-    /// False without `sync-screen`, on Wayland, or without a display.
+    /// False without `sync-screen`, without a display, or on Wayland
+    /// without a screen-sharing portal.
     screen_supported: bool,
+    /// Wayland: the screen is picked in the portal's dialog, not by RandR name.
+    screen_portal: bool,
+    /// Wayland: the screen the portal will share without asking (null: it asks).
+    shared_screen: Option<screen::capture::SharedScreen>,
 }
 
 /// Everything the Sync tab needs in one call: checklist, areas, lights, status.
@@ -58,6 +63,7 @@ pub async fn sync_overview(
     }
 
     let audio = audio::devices::default_devices();
+    let screen = screen::capture::availability().await;
     let status = manager.status();
     let ours = match &status {
         SyncStatus::Starting { area_id } | SyncStatus::Streaming { area_id, .. } => Some(area_id.as_str()),
@@ -76,7 +82,7 @@ pub async fn sync_overview(
         areas: &areas,
         busy_area: busy_area.as_deref(),
         audio: Some(&audio),
-        screen: Some(screen::capture::unavailable_reason()),
+        screen: Some(screen),
     });
     Ok(SyncOverview {
         ready: readiness::is_ready(&checks),
@@ -85,7 +91,9 @@ pub async fn sync_overview(
         lights,
         status,
         audio_supported: cfg!(feature = "sync-audio"),
-        screen_supported: screen::capture::unavailable_reason().is_none(),
+        screen_supported: screen.is_none(),
+        screen_portal: screen::capture::is_wayland(),
+        shared_screen: screen::capture::shared_screen(),
     })
 }
 
@@ -95,6 +103,24 @@ pub fn sync_audio_devices(app: AppHandle) -> Result<AudioDevices, AudioProblem> 
     let devices = audio::devices::default_devices();
     logs::write(&app, "debug", "app", "sync.audio_devices", format!("{devices:?}"), None);
     devices
+}
+
+/// Wayland: "Change screen…" — the system's sharing dialog now, remembered
+/// for the next start. Declining keeps the previous screen.
+#[tauri::command]
+pub async fn sync_screen_pick(app: AppHandle) -> Result<Option<screen::capture::SharedScreen>, String> {
+    use screen::capture::StartError;
+    match screen::capture::pick_screen().await {
+        Ok(shared) => {
+            logs::write(&app, "info", "app", "sync.screen_picked", format!("Screen to share: {shared:?}"), None);
+            Ok(shared)
+        }
+        Err(StartError::Cancelled) => Ok(screen::capture::shared_screen()),
+        Err(StartError::Failed(e)) => {
+            logs::write(&app, "warn", "app", "sync.screen_pick_failed", e.clone(), None);
+            Err(e)
+        }
+    }
 }
 
 /// Monitors for screen sync (RandR names, sizes, which is primary).
@@ -170,7 +196,7 @@ mod live {
             areas: &areas,
             busy_area: None,
             audio: Some(&audio::devices::default_devices()),
-            screen: Some(screen::capture::unavailable_reason()),
+            screen: Some(screen::capture::availability().await),
         });
         println!("bridge {model:?} api {api:?}");
         for c in &checks {

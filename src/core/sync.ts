@@ -94,6 +94,15 @@ export const sync = {
     patch({ audioDevices });
   },
 
+  /** Wayland: the system's sharing dialog now; the choice is kept for the next start. */
+  async pickScreen(): Promise<void> {
+    try {
+      await invoke("sync_screen_pick");
+    } finally {
+      await sync.refresh();
+    }
+  },
+
   async refreshMonitors(): Promise<void> {
     const monitors = await invoke<Monitor[]>("sync_monitors").catch(() => null);
     patch({ monitors });

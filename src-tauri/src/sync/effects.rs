@@ -25,8 +25,9 @@ pub trait Effect: Send {
     }
 
     /// Screen: the coarse screen grid for the UI's preview, sRGB bytes
-    /// (R, G, B per cell, row-major, zones::GRID_COLS × GRID_ROWS).
-    fn screen_preview(&self) -> Option<Vec<u8>> {
+    /// (R, G, B per cell, row-major, zones::GRID_COLS × GRID_ROWS), and the
+    /// picture's width / height.
+    fn screen_preview(&self) -> Option<(Vec<u8>, f32)> {
         None
     }
 
@@ -256,9 +257,10 @@ impl Effect for ScreenEffect {
         colors
     }
 
-    fn screen_preview(&self) -> Option<Vec<u8>> {
+    fn screen_preview(&self) -> Option<(Vec<u8>, f32)> {
         let grid = self.grid.lock().unwrap();
-        Some(grid.as_ref()?.cells.iter().flat_map(|c| c.map(linear_to_srgb8)).collect())
+        let grid = grid.as_ref()?;
+        Some((grid.cells.iter().flat_map(|c| c.map(linear_to_srgb8)).collect(), grid.aspect))
     }
 
     fn limited_flashes(&self) -> u32 {
@@ -440,7 +442,7 @@ mod tests {
     #[test]
     fn screen_effect_follows_the_grid_and_dims_without_it() {
         use crate::sync::screen::zones::{GRID_COLS, GRID_ROWS};
-        let red = Grid { cells: vec![[1.0, 0.0, 0.0]; GRID_COLS * GRID_ROWS] };
+        let red = Grid { cells: vec![[1.0, 0.0, 0.0]; GRID_COLS * GRID_ROWS], aspect: 16.0 / 9.0 };
         let grid = Arc::new(Mutex::new(Some(red)));
         let mut effect = ScreenEffect::new(3, false, grid.clone(), Arc::default());
         let channels = [channel(0, 0.0)];

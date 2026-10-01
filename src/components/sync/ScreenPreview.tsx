@@ -9,12 +9,12 @@
 // The grid arrives as "sync-screen" ~10× a second and is painted straight
 // onto the canvas, without React re-rendering.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { averageColor, hexToRgb, toCss } from "@/lib/color";
 import type { Position3 } from "@/types";
 
-type Grid = { cols: number; rows: number; cells: number[] };
+type Grid = { cols: number; rows: number; cells: number[]; aspect: number };
 
 /** A light's view, as in src-tauri/src/sync/screen/zones.rs (SIGMA_X/Y × ZoneStyle.focus). */
 const SIGMA = { x: 0.18, y: 0.35 };
@@ -34,15 +34,19 @@ type Props = {
   /** Current light colors, "#RRGGBB", in channel order. */
   colors: string[];
   intensity: number;
-  /** Width / height of the captured monitor. */
+  /** Width / height of the captured monitor, until the stream says (Wayland). */
   aspect: number;
 };
 
-export function ScreenPreview({ channels, colors, intensity, aspect }: Props) {
+export function ScreenPreview({ channels, colors, intensity, aspect: initialAspect }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  // The captured picture's own proportions, once frames arrive.
+  const [streamAspect, setStreamAspect] = useState<number | null>(null);
+  const aspect = streamAspect ?? initialAspect;
 
   useEffect(() => {
-    const unlisten = listen<Grid>("sync-screen", ({ payload: { cols, rows, cells } }) => {
+    const unlisten = listen<Grid>("sync-screen", ({ payload: { cols, rows, cells, aspect: frameAspect } }) => {
+      if (frameAspect > 0) setStreamAspect((current) => (current !== null && Math.abs(current - frameAspect) < 0.01 ? current : frameAspect));
       const el = canvas.current;
       const ctx = el?.getContext("2d");
       if (!el || !ctx) return;

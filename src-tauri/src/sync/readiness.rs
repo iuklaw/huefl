@@ -158,7 +158,7 @@ mod tests {
             areas: &[],
             busy_area: None,
             audio: Some(&Err(AudioProblem::NoServer)),
-            screen: Some(Some("wayland")),
+            screen: Some(Some("no_portal")),
         });
         for id in ["bridge", "firmware", "client_key", "lights", "area"] {
             assert_eq!(level(&checks, id), Level::Blocking, "{id}");

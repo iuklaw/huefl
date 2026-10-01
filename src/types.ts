@@ -197,6 +197,10 @@ export type SyncOverview = {
   audioSupported: boolean;
   /** False on Wayland, without a display, or in builds without screen support. */
   screenSupported: boolean;
+  /** Wayland: the screen is picked in the system's sharing dialog, not from a list. */
+  screenPortal: boolean;
+  /** Wayland: the screen the system shares without asking; null = it asks at start. */
+  sharedScreen: { width: number; height: number } | null;
 };
 
 /** A monitor for screen sync (X11 RandR). */

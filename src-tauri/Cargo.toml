@@ -27,11 +27,21 @@ libpulse-binding = { version = "2.30", optional = true }
 libpulse-simple-binding = { version = "2.29", optional = true }
 x11rb = { version = "0.14", features = ["shm", "randr"], optional = true }
 libc = { version = "0.2", optional = true }
+ashpd = { version = "0.13", default-features = false, features = ["tokio", "screencast"], optional = true }
+# 0.6 + libspa 0.6: the newest that build against PipeWire 0.3.48 headers
+# (Ubuntu 22.04); later libspa needs fields added in 0.3.6x. At run time any
+# newer PipeWire works (the protocol is backwards compatible).
+pipewire = { version = "0.6", optional = true }
+libspa = { version = "=0.6.0", optional = true }
+libspa-sys = { version = "0.8", optional = true }
 
 [features]
-default = ["sync-audio", "sync-screen"]
+default = ["sync-audio", "sync-screen", "sync-screen-wayland"]
 # Music sync: system audio / microphone capture through PulseAudio (works on
 # PipeWire too). Needs libpulse-dev to build; without it, music mode is off.
 sync-audio = ["dep:libpulse-binding", "dep:libpulse-simple-binding"]
 # Screen sync: X11 capture through MIT-SHM (pure-Rust x11rb, no libxcb).
 sync-screen = ["dep:x11rb", "dep:libc"]
+# Screen sync on Wayland: the xdg-desktop-portal ScreenCast + a PipeWire
+# stream. Needs libpipewire-0.3-dev and libclang-dev to build.
+sync-screen-wayland = ["sync-screen", "dep:ashpd", "dep:pipewire", "dep:libspa", "dep:libspa-sys"]

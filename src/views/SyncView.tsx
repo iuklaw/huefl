@@ -6,6 +6,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  CircleAlert,
   Pencil,
   Play,
   Plus,
@@ -17,6 +18,7 @@ import {
   Music,
 } from "lucide-react";
 import { AreaWizard } from "@/components/sync/AreaWizard";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScreenPreview } from "@/components/sync/ScreenPreview";
 import { SpectrumBars } from "@/components/sync/SpectrumBars";
 import { Readiness } from "@/components/sync/Readiness";
@@ -206,6 +208,20 @@ function SyncControls({
         ? "screen"
         : "ambient";
   const screenCheck = overview?.checks.find((c) => c.id === "screen");
+  // Why a mode is off on this machine — shown next to the "Mode" heading.
+  const unavailableModes = [
+    ...(!audioOk ? [{ mode: "music" as const, why: t("sync.mode_unavailable_build") }] : []),
+    ...(!screenOk
+      ? [
+          {
+            mode: "screen" as const,
+            why: screenCheck?.params?.reason
+              ? t(`sync.check.screen.${screenCheck.params.reason}` as MessageKey)
+              : t("sync.mode_unavailable_build"),
+          },
+        ]
+      : []),
+  ];
 
   const start = (takeOver = false) => {
     if (!area) return;
@@ -281,21 +297,15 @@ function SyncControls({
           </Field>
 
           {/* Mode */}
-          <Field label={t("sync.mode.label")}>
+          <Field label={t("sync.mode.label")} aside={<ModeWarnings reasons={unavailableModes} />}>
             <div className="grid grid-cols-3 gap-1.5">
               {MODES.map(({ mode: m, icon: Icon, available: planned }) => {
                 const unsupported = (m === "music" && !audioOk) || (m === "screen" && !screenOk);
                 const available = planned && !unsupported;
-                // Why a mode is off here, e.g. "needs an X11 session".
-                const why =
-                  m === "screen" && screenCheck?.params?.reason
-                    ? t(`sync.check.screen.${screenCheck.params.reason}` as MessageKey)
-                    : undefined;
                 return (
                   <button
                     key={m}
                     type="button"
-                    title={why}
                     disabled={!available || busy}
                     onClick={() => void actions.setSyncPrefs({ mode: m })}
                     className={cn(
@@ -396,7 +406,11 @@ function SyncControls({
         </Field>
 
         {/* Error */}
-        {status.state === "error" && (
+        {/* Declining the screen-sharing dialog is a choice, not a failure. */}
+        {status.state === "error" && status.code === "screen_cancelled" && (
+          <p className="text-center text-xs text-muted-foreground">{t("sync.screen_cancelled")}</p>
+        )}
+        {status.state === "error" && status.code !== "screen_cancelled" && (
           <div
             role="alert"
             className="rounded-lg border border-destructive/40 bg-destructive/10 p-3"
@@ -471,6 +485,55 @@ function SyncControls({
 // --- Screen settings ---------------------------------------------------------
 
 function ScreenSettings({ disabled }: { disabled: boolean }) {
+  const { overview } = useSyncState();
+  return overview?.screenPortal ? <PortalScreen disabled={disabled} /> : <MonitorPicker disabled={disabled} />;
+}
+
+/**
+ * Wayland: apps can't pick a monitor themselves — the system's sharing
+ * dialog does. "Change screen…" opens it now; the choice is remembered, and
+ * shown here (the dialog tells us its size, not its name).
+ */
+function PortalScreen({ disabled }: { disabled: boolean }) {
+  const { overview } = useSyncState();
+  const [picking, setPicking] = useState(false);
+  const shared = overview?.sharedScreen ?? null;
+  const size = shared && shared.width > 0 ? t("sync.monitor_size", { width: shared.width, height: shared.height }) : null;
+
+  return (
+    <Field label={t("sync.monitor")}>
+      <div className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+        <p className="min-w-0 text-xs">
+          {shared ? (
+            <>
+              <span className="font-medium">{t("sync.screen_shared")}</span>
+              {size && <span className="text-muted-foreground"> · {size}</span>}
+            </>
+          ) : (
+            <span className="text-muted-foreground">{t("sync.screen_pick_hint")}</span>
+          )}
+        </p>
+        <Button
+          size="xs"
+          variant="secondary"
+          className="shrink-0"
+          disabled={disabled || picking}
+          onClick={() => {
+            setPicking(true);
+            void sync.pickScreen().finally(() => setPicking(false));
+          }}
+        >
+          {picking ? <Spinner /> : null}
+          {t("sync.screen_change")}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">{t("sync.screen_hint")}</p>
+    </Field>
+  );
+}
+
+/** X11: a monitor from RandR. */
+function MonitorPicker({ disabled }: { disabled: boolean }) {
   const { syncPrefs } = useAppState();
   const { monitors } = useSyncState();
 
@@ -641,14 +704,53 @@ function Segmented<T extends string>({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  aside,
+  children,
+}: {
+  label: string;
+  /** Next to the heading, e.g. a warning icon. */
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <section className="space-y-1.5">
-      <h2 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-        {label}
-      </h2>
+      <div className="flex items-center gap-1.5">
+        <h2 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+          {label}
+        </h2>
+        {aside}
+      </div>
       {children}
     </section>
+  );
+}
+
+/** A warning icon by "Mode" when some mode can't run here; hover for why. */
+function ModeWarnings({ reasons }: { reasons: { mode: SyncMode; why: string }[] }) {
+  if (reasons.length === 0) return null;
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="rounded-full text-amber-500 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={t("sync.mode_unavailable_label")}
+          >
+            <CircleAlert className="size-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="start" className="max-w-64 space-y-1 text-xs">
+          {reasons.map(({ mode, why }) => (
+            <p key={mode}>
+              <span className="font-semibold">{t(`sync.mode.${mode}` as MessageKey)}</span> — {why}
+            </p>
+          ))}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

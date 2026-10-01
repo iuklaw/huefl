@@ -63,10 +63,44 @@ impl Default for ZoneStyle {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Grid {
     pub cells: Vec<Rgb>,
+    /// Width / height of the captured picture (for the UI's miniature).
+    pub aspect: f32,
+}
+
+/// Where R, G and B sit in a 4-byte pixel. X11 gives BGRX; PipeWire streams
+/// (Wayland) come in whatever the compositor negotiates.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PixelOrder {
+    /// B, G, R, x — also BGRA.
+    Bgrx,
+    /// R, G, B, x — also RGBA.
+    Rgbx,
+    /// x, R, G, B
+    Xrgb,
+    /// x, B, G, R
+    Xbgr,
+}
+
+impl PixelOrder {
+    /// Byte offsets of red, green, blue.
+    fn offsets(self) -> [usize; 3] {
+        match self {
+            PixelOrder::Bgrx => [2, 1, 0],
+            PixelOrder::Rgbx => [0, 1, 2],
+            PixelOrder::Xrgb => [1, 2, 3],
+            PixelOrder::Xbgr => [3, 2, 1],
+        }
+    }
 }
 
 /// Averages a BGRX frame (4 bytes per pixel, `stride` bytes per row) into the grid.
 pub fn grid_from_bgrx(frame: &[u8], width: usize, height: usize, stride: usize) -> Grid {
+    grid_from_frame(frame, width, height, stride, PixelOrder::Bgrx)
+}
+
+/// Averages a 4-byte-per-pixel frame in `order` into the grid.
+pub fn grid_from_frame(frame: &[u8], width: usize, height: usize, stride: usize, order: PixelOrder) -> Grid {
+    let [r, g, b] = order.offsets();
     let mut cells = Vec::with_capacity(GRID_COLS * GRID_ROWS);
     for row in 0..GRID_ROWS {
         for col in 0..GRID_COLS {
@@ -77,10 +111,10 @@ pub fn grid_from_bgrx(frame: &[u8], width: usize, height: usize, stride: usize) 
                     let x = ((col * SAMPLES + sx) * 2 + 1) * width / (GRID_COLS * SAMPLES * 2);
                     let y = ((row * SAMPLES + sy) * 2 + 1) * height / (GRID_ROWS * SAMPLES * 2);
                     let i = y * stride + x * 4;
-                    if let Some(px) = frame.get(i..i + 3) {
-                        sum[0] += srgb_to_linear(px[2]);
-                        sum[1] += srgb_to_linear(px[1]);
-                        sum[2] += srgb_to_linear(px[0]);
+                    if let Some(px) = frame.get(i..i + 4) {
+                        sum[0] += srgb_to_linear(px[r]);
+                        sum[1] += srgb_to_linear(px[g]);
+                        sum[2] += srgb_to_linear(px[b]);
                     }
                 }
             }
@@ -88,7 +122,7 @@ pub fn grid_from_bgrx(frame: &[u8], width: usize, height: usize, stride: usize) 
             cells.push([sum[0] / n, sum[1] / n, sum[2] / n]);
         }
     }
-    Grid { cells }
+    Grid { cells, aspect: width as f32 / height.max(1) as f32 }
 }
 
 /// The screen point a light watches: (0,0) top-left … (1,1) bottom-right.
@@ -248,6 +282,26 @@ mod tests {
             c[2] / c[0]
         };
         assert!(bleed(3) < bleed(0), "subtle {} vs extreme {}", bleed(0), bleed(3));
+    }
+
+    #[test]
+    fn every_pixel_order_reads_the_same_picture() {
+        // Left red, right blue, laid out in each byte order.
+        let paint = |order: PixelOrder| {
+            let [r, _, b] = order.offsets();
+            let mut data = vec![0u8; W * H * 4];
+            for y in 0..H {
+                for x in 0..W {
+                    let i = (y * W + x) * 4;
+                    data[i + if x < W / 2 { r } else { b }] = 255;
+                }
+            }
+            grid_from_frame(&data, W, H, W * 4, order)
+        };
+        let reference = grid_from_bgrx(&frame(|x, _| if x < W / 2 { (255, 0, 0) } else { (0, 0, 255) }), W, H, W * 4);
+        for order in [PixelOrder::Bgrx, PixelOrder::Rgbx, PixelOrder::Xrgb, PixelOrder::Xbgr] {
+            assert_eq!(paint(order), reference, "{order:?}");
+        }
     }
 
     #[test]

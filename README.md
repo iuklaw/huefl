@@ -11,7 +11,8 @@ Dziala na Ubuntu 22.04+ (i innych dystrybucjach z webkit2gtk-4.1). Do budowania:
 ```bash
 sudo apt install build-essential curl wget file pkg-config libssl-dev \
   libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
-  libpulse-dev   # synchronizacja z muzyka (feature sync-audio)
+  libpulse-dev \                     # synchronizacja z muzyka (feature sync-audio)
+  libpipewire-0.3-dev libclang-dev   # ekran na Waylandzie (feature sync-screen-wayland)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh   # Rust (stable)
 ```
 
@@ -167,7 +168,12 @@ Tryby:
   pozycji w obszarze (x → poziomo, wysokosc z → pionowo). X11 + MIT-SHM
   (czysty Rust, `x11rb`), ~25 klatek/s, ok. 5% jednego rdzenia CPU. Czarne pasy
   filmow sa pomijane, kolory lekko nasycane, tryb bezpieczny dziala tez tu.
-  Wayland: jeszcze nie (wymaga portalu xdg-desktop-portal) — aplikacja to mowi.
+  Wayland: przez portal xdg-desktop-portal (ScreenCast) i strumien PipeWire
+  (`screen/portal.rs`). Przy pierwszym starcie system pyta, ktory ekran
+  udostepnic; portale KDE Plasma 5.27+ / GNOME 44+ zapamietuja wybor
+  (`~/.local/state/huefl/screencast.json`: token i rozmiar ekranu). Przycisk
+  "Change screen…" otwiera okno wyboru od razu. Wybrac monitora samemu aplikacja
+  na Waylandzie nie moze — to celowo decyzja okna systemu.
 
 Caly silnik dziala w Rust (`src-tauri/src/sync/`), bo JS w schowanym oknie jest
 usypiany, a synchronizacja ma dzialac z traya. Po zatrzymaniu lampy wracaja do
