@@ -1,6 +1,6 @@
 # Contributing to HueFL
 
-Thanks for helping! Bug reports and ideas go to [Issues](https://github.com/iuklaw/huefl/issues); for code, open a pull request. This page covers building from source, how the app is put together, and how releases are made.
+Thanks for helping! Bug reports and ideas go to [Issues](https://github.com/iuklaw/huefl/issues); for code, open a pull request. This page covers building from source and how the app is put together.
 
 ## Building from source
 
@@ -85,27 +85,3 @@ Texts are in `src/locales/en.json`. To add a language, create `src/locales/<code
 ### Logs
 
 `~/.local/state/huefl/huefl.log` (JSON lines, rotated at 1 MB), shown in **Options → Logs**. Never log secrets: the TypeScript logger redacts key fields, and bug reports strip the bridge keys by value.
-
-## Releases
-
-Releases are built by GitHub Actions (`.github/workflows/release.yml`) on Ubuntu 22.04 - the oldest glibc the app supports - when a `v*` tag is pushed:
-
-```bash
-node scripts/bump-version.mjs 0.2.0     # package.json, Cargo.toml, tauri.conf.json
-git commit -am "release: v0.2.0"
-git tag v0.2.0 && git push --follow-tags
-```
-
-The workflow creates a **draft** release with the AppImage, the .deb, their signatures and `latest.json`; review it and publish. The release text becomes the update notes shown in the app.
-
-Updates are signed with the maintainer's key (`npm run tauri signer generate`); its public half is `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`, the private half the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Builds without a public key don't check for updates. `HUEFL_UPDATE_ENDPOINT` points a build at another `latest.json` for testing (the signature is still required).
-
-### Bug report server
-
-**Report a bug** sends the report only if the build was given a server:
-
-```bash
-HUEFL_REPORT_URL=https://example.com/reports HUEFL_REPORT_TOKEN=secret npm run tauri build
-```
-
-The app `POST`s the JSON report (`BugReport` in `src/core/report.ts`, `schema: 1`) with `Authorization: Bearer <token>` if a token is set; the server answers 2xx with `{"id": "…"}`. Limits: 5 MB per report, 15 s per request.

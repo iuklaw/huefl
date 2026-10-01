@@ -17,6 +17,18 @@ Built with [Tauri 2](https://tauri.app) (Rust + the system webview) and React.
   </tr>
 </table>
 
+<details>
+<summary>Light theme</summary>
+<br>
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/lights-light.png" width="260" alt="Lights tab in the light theme: a room card with its next schedule, presets and palettes"><br><sub>Rooms, presets and palettes</sub></td>
+    <td align="center"><img src="docs/screenshots/sync-music-light.png" width="260" alt="Music sync in the light theme, with the live spectrum"><br><sub>Music sync</sub></td>
+    <td align="center"><img src="docs/screenshots/sync-ambient-light.png" width="260" alt="Ambient sync in the light theme, with the lights' current colors"><br><sub>Ambient sync</sub></td>
+  </tr>
+</table>
+</details>
+
 ## Features
 
 - **Rooms and lights** - on/off, brightness, color wheel and white temperature, per room or per light; changes made elsewhere (the Hue app, a dimmer switch) show up instantly.
@@ -113,7 +125,9 @@ Use the clock button on a room card for a quick timer, or open **Schedules** for
 
 ## Configuration
 
-Settings are changed in the app (gear icon → **Options**). Files live in the usual places:
+<img src="docs/screenshots/options-sync-light.png" width="260" align="right" alt="Options, Sync tab: restore lights after sync, photosensitivity safe mode">
+
+Settings are changed in the app (gear icon → **Options**): closing to the tray, theme, bridge, lights, sync, logs and updates. Files live in the usual places:
 
 | What | Where |
 |---|---|
@@ -132,6 +146,8 @@ Terminal=false
 ```
 
 For the AppImage, set `Exec` to the full path of the file.
+
+<br clear="right">
 
 ## Troubleshooting
 
