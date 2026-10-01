@@ -2,7 +2,8 @@
 // and ready-made popular palettes. One click applies either.
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
+import { SavePresetDialog } from "@/components/SavePresetDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,10 +20,12 @@ import { toCss } from "@/lib/color";
 import { POPULAR_PALETTES } from "@/lib/palettes";
 import { paletteBackground, scenePreview, type ActivePreset } from "@/lib/presets";
 import { cn } from "@/lib/utils";
-import type { RoomView, Scene } from "@/types";
+import type { LightView, RoomView, Scene } from "@/types";
 
 type Props = {
   room: RoomView;
+  /** The room's lights — editing a preset can take their current look. */
+  lights: LightView[];
   scenes: Scene[];
   /** The preset the lights currently show (see findActivePreset). */
   active: ActivePreset | null;
@@ -30,7 +33,8 @@ type Props = {
   accent: { text: string; border: string };
 };
 
-export function RoomPresets({ room, scenes, active, accent }: Props) {
+export function RoomPresets({ room, lights, scenes, active, accent }: Props) {
+  const [toEdit, setToEdit] = useState<Scene | null>(null);
   const isActive = (kind: ActivePreset["kind"], id: string) =>
     active?.kind === kind && active.id === id;
   const [toDelete, setToDelete] = useState<Scene | null>(null);
@@ -74,6 +78,17 @@ export function RoomPresets({ room, scenes, active, accent }: Props) {
                     >
                       {scene.name}
                     </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setToEdit(scene)}
+                    aria-label={t("presets.edit_label", { name: scene.name })}
+                    className={cn(
+                      "rounded-sm p-1 text-muted-foreground opacity-0 transition-opacity outline-none",
+                      "group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring",
+                    )}
+                  >
+                    <Pencil className="size-3.5" />
                   </button>
                   <button
                     type="button"
@@ -125,6 +140,15 @@ export function RoomPresets({ room, scenes, active, accent }: Props) {
           })}
         </div>
       </section>
+
+      <SavePresetDialog
+        open={toEdit !== null}
+        onOpenChange={(open) => !open && setToEdit(null)}
+        room={room}
+        lights={lights}
+        scenes={scenes}
+        scene={toEdit ?? undefined}
+      />
 
       <AlertDialog open={toDelete !== null} onOpenChange={(open) => !open && setToDelete(null)}>
         <AlertDialogContent>

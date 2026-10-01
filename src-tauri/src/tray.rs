@@ -83,7 +83,8 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
     let menu = build_menu(app, &TrayModel::default())?;
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(Image::from_bytes(ICON_OFF)?)
-        .tooltip("Hue")
+        // The app's name from tauri.conf.json (productName), like the window title.
+        .tooltip(&app.package_info().name)
         .menu(&menu)
         .on_menu_event(on_menu_event)
         .build(app)?;

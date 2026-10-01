@@ -178,6 +178,25 @@ export const actions: Actions = {
     await updateLibrary({ ...state.library, scenes: [scene, ...state.library.scenes] });
   },
 
+  updateScene: async (sceneId, { name, recapture }) => {
+    const scene = state.library.scenes.find((s) => s.id === sceneId);
+    if (!scene) return;
+    // Same place in the list, same id: an edit, not a new preset.
+    const updated = {
+      ...scene,
+      name,
+      ...(recapture ? { lights: captureScene(state.lights.filter((l) => l.roomId === scene.roomId)) } : {}),
+    };
+    log.info("command", "preset.updated", `Preset "${scene.name}" updated`, {
+      renamed: name !== scene.name ? name : undefined,
+      recaptured: recapture,
+    });
+    await updateLibrary({
+      ...state.library,
+      scenes: state.library.scenes.map((s) => (s.id === sceneId ? updated : s)),
+    });
+  },
+
   deleteScene: async (sceneId) => {
     const scene = state.library.scenes.find((s) => s.id === sceneId);
     log.info("command", "preset.deleted", `Preset "${scene?.name ?? sceneId}" deleted`);

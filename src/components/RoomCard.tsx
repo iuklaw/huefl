@@ -190,7 +190,7 @@ export function RoomCard({
             {t("presets.title")}
           </SectionTrigger>
           <CollapsibleContent className="overflow-hidden data-open:animate-collapsible-down data-closed:animate-collapsible-up">
-            <RoomPresets room={room} scenes={scenes} active={active} accent={accent} />
+            <RoomPresets room={room} lights={lights} scenes={scenes} active={active} accent={accent} />
           </CollapsibleContent>
         </Collapsible>
 

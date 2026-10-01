@@ -1,5 +1,4 @@
 {
-  "app.name": "Hue",
   "app.product_name": "HueFL",
 
   "titlebar.options": "Options",
@@ -33,6 +32,11 @@
   "presets.empty": "Save the current look with “Save preset” under Lights.",
   "presets.apply_label": "Apply {name}",
   "presets.current_label": "Preset: {name}",
+  "presets.edit_label": "Edit {name}",
+  "presets.edit_title": "Edit preset",
+  "presets.edit_description": "Rename it, or store how the lights in {room} look now.",
+  "presets.recapture": "Use the lights' current look",
+  "presets.recapture_hint": "Replaces the preset's colors and brightness.",
   "presets.delete_label": "Delete {name}",
   "presets.delete_title": "Delete this preset?",
   "presets.delete_description": "“{name}” will be removed. Your lights stay as they are.",

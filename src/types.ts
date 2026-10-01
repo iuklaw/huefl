@@ -145,6 +145,8 @@ export type Actions = {
   setAllRooms(on: boolean): void;
   rememberColor(lightId: string, hex: string): Promise<void>;
   saveScene(roomId: string, name: string): Promise<void>;
+  /** Renames a saved scene; `recapture` also replaces its lights with how they look now. */
+  updateScene(sceneId: string, patch: { name: string; recapture: boolean }): Promise<void>;
   deleteScene(sceneId: string): Promise<void>;
   applyScene(scene: Scene): void;
   applyPalette(roomId: string, palette: Palette): void;

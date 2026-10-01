@@ -20,7 +20,7 @@ export function TitleBar({ onOptions, onClose }: Props) {
     >
       <Lightbulb data-tauri-drag-region className="size-4 text-primary" aria-hidden />
       <span data-tauri-drag-region className="ml-2 text-xs font-semibold tracking-wide">
-        {t("app.name")}
+        {t("app.product_name")}
       </span>
 
       <div className="ml-auto flex h-full">

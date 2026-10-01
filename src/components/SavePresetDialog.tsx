@@ -10,9 +10,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { actions } from "@/core/app";
 import { t } from "@/i18n";
 import { toCss } from "@/lib/color";
+import { scenePreview } from "@/lib/presets";
 import type { LightView, RoomView, Scene } from "@/types";
 
 const MAX_NAME_LENGTH = 40;
@@ -24,32 +26,43 @@ type Props = {
   lights: LightView[];
   /** This room's saved scenes — to suggest a free default name. */
   scenes: Scene[];
-  onSaved: () => void;
+  /** Edit this scene (rename, optionally take the current look) instead of saving a new one. */
+  scene?: Scene;
+  onSaved?: () => void;
 };
 
-/** Names the current look of a room and saves it as a scene. */
-export function SavePresetDialog({ open, onOpenChange, room, lights, scenes, onSaved }: Props) {
+/** Names the current look of a room and saves it as a scene — or edits a saved one. */
+export function SavePresetDialog({ open, onOpenChange, room, lights, scenes, scene, onSaved }: Props) {
   const [name, setName] = useState("");
+  const [recapture, setRecapture] = useState(false);
   const [saving, setSaving] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const editing = scene !== undefined;
 
   useEffect(() => {
     if (!open) return;
-    setName(defaultName(scenes));
-    // Select the suggestion so typing replaces it.
+    setName(scene?.name ?? defaultName(scenes));
+    setRecapture(false);
+    // Select the name so typing replaces it.
     requestAnimationFrame(() => input.current?.select());
-  }, [open, scenes]);
+  }, [open, scenes, scene]);
 
   const trimmed = name.trim();
-  const preview = lights.filter((l) => l.on && l.color);
+  // What the preset will hold: the lights now, or (editing) what it has.
+  const current = lights.filter((l) => l.on && l.color).map((l) => ({ key: l.id, title: l.name, color: l.color! }));
+  const preview =
+    editing && !recapture
+      ? scenePreview(scene, 12).map((color, i) => ({ key: String(i), title: undefined, color }))
+      : current;
 
   const save = async () => {
     if (!trimmed || saving) return;
     setSaving(true);
-    await actions.saveScene(room.id, trimmed);
+    if (scene) await actions.updateScene(scene.id, { name: trimmed, recapture });
+    else await actions.saveScene(room.id, trimmed);
     setSaving(false);
     onOpenChange(false);
-    onSaved();
+    onSaved?.();
   };
 
   return (
@@ -63,20 +76,22 @@ export function SavePresetDialog({ open, onOpenChange, room, lights, scenes, onS
           }}
         >
           <DialogHeader>
-            <DialogTitle>{t("presets.save_title")}</DialogTitle>
+            <DialogTitle>{t(editing ? "presets.edit_title" : "presets.save_title")}</DialogTitle>
             <DialogDescription>
-              {t("presets.save_description", { room: room.name })}
+              {editing
+                ? t("presets.edit_description", { room: room.name })
+                : t("presets.save_description", { room: room.name })}
             </DialogDescription>
           </DialogHeader>
 
           {preview.length > 0 && (
             <div className="flex gap-1.5" aria-hidden>
-              {preview.map((light) => (
+              {preview.map((item) => (
                 <span
-                  key={light.id}
-                  title={light.name}
+                  key={item.key}
+                  title={item.title}
                   className="size-5 rounded-full ring-1 ring-border"
-                  style={{ backgroundColor: toCss(light.color!) }}
+                  style={{ backgroundColor: toCss(item.color) }}
                 />
               ))}
             </div>
@@ -92,6 +107,16 @@ export function SavePresetDialog({ open, onOpenChange, room, lights, scenes, onS
               onChange={(event) => setName(event.target.value)}
             />
           </div>
+
+          {editing && (
+            <label className="flex items-center justify-between gap-3 text-sm">
+              <span>
+                {t("presets.recapture")}
+                <span className="block text-xs text-muted-foreground">{t("presets.recapture_hint")}</span>
+              </span>
+              <Switch checked={recapture} onCheckedChange={setRecapture} />
+            </label>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
