@@ -1,5 +1,10 @@
 # HueFL - Philips Hue for Linux
 
+[![Latest release](https://img.shields.io/github/v/release/iuklaw/huefl?sort=semver&label=release)](https://github.com/iuklaw/huefl/releases/latest)
+[![Release date](https://img.shields.io/github/release-date/iuklaw/huefl?label=released)](https://github.com/iuklaw/huefl/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/iuklaw/huefl)](LICENSE)
+![Platform: Linux x86_64](https://img.shields.io/badge/platform-Linux%20x86__64-informational)
+
 Control your Philips Hue lights and sync them with your music and your screen. HueFL talks to the Hue Bridge directly on your local network.
 
 Built with [Tauri 2](https://tauri.app) (Rust + the system webview) and React.
@@ -28,6 +33,10 @@ Built with [Tauri 2](https://tauri.app) (Rust + the system webview) and React.
 - **Updates in the app** - new versions are announced in the title bar and installed in place (signed releases).
 - Light and dark theme, following the system.
 
+## Status
+
+HueFL is young (version 0.x): usable every day, but expect rough edges and changes between versions. It's tested on Ubuntu 22.04 (GNOME, X11) and SteamOS (KDE Plasma, Wayland) with a Hue Bridge v2. Reports from other setups are very welcome - see [Troubleshooting](#troubleshooting).
+
 ## Install
 
 Download the latest release from the [Releases page](https://github.com/iuklaw/huefl/releases).
@@ -44,6 +53,12 @@ chmod +x HueFL_*_amd64.AppImage
 ```bash
 sudo apt install ./HueFL_*_amd64.deb
 ```
+
+### Releases and updates
+
+Every version is published on the [Releases page](https://github.com/iuklaw/huefl/releases) with its changes, an AppImage and a .deb. Releases are built by [GitHub Actions](https://github.com/iuklaw/huefl/actions/workflows/release.yml) from the tagged source and signed.
+
+HueFL checks for new versions itself (shortly after start and every few hours). When one is out, its number appears next to the app's name in the title bar - click it to see what's new, download and install it, and restart. AppImages update in place; the .deb asks for your password. Automatic checks can be turned off in **Options → About**.
 
 ### From source
 
