@@ -1,5 +1,5 @@
-// "Report a bug" (Options → About): a description and —
-// if the user agrees — the app's log and facts about the system. The exact
+// "Report a bug" (Options → About): a description and -
+// if the user agrees - the app's log and facts about the system. The exact
 // report is shown before it leaves. Send delivers it to the report server set
 // when building (src-tauri/src/report.rs); a build without one does nothing.
 
@@ -56,7 +56,7 @@ export function BugReportDialog({ open, onOpenChange }: Props) {
       .catch((e) => log.warn("ui", "report.parts_failed", String(e)));
   }, [open]);
 
-  // The report exactly as it would go out — for the preview and the actions.
+  // The report exactly as it would go out - for the preview and the actions.
   useEffect(() => {
     if (!open) return;
     void buildReport({ description, parts, includeSystem, includeLogs }).then(setReport);
@@ -70,7 +70,7 @@ export function BugReportDialog({ open, onOpenChange }: Props) {
     setError(null);
     try {
       const id = await sendReport(report);
-      // null: this build has no report server — nothing happens for now.
+      // null: this build has no report server - nothing happens for now.
       if (id !== null) setSentId(id);
     } catch (e) {
       setError(String(e));
@@ -152,7 +152,7 @@ export function BugReportDialog({ open, onOpenChange }: Props) {
         {sentId !== null && (
           <p role="status" data-selectable className="flex items-start gap-1.5 rounded-md bg-primary/10 p-2 text-xs">
             <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
-            {t("report.sent", { id: sentId || "—" })}
+            {t("report.sent", { id: sentId || "-" })}
           </p>
         )}
 

@@ -11,7 +11,7 @@ import type { AppState } from "@/types";
 
 type Props = {
   state: AppState;
-  /** Expanded rooms, lights and `presets:<roomId>` — owned by App so they survive visiting Options. */
+  /** Expanded rooms, lights and `presets:<roomId>` - owned by App so they survive visiting Options. */
   expanded: ReadonlySet<string>;
   onExpandedChange: (expanded: ReadonlySet<string>) => void;
   onOpenBridgeSettings: () => void;

@@ -34,7 +34,7 @@ type Props = {
   /** Saved scenes of this room, newest first. */
   scenes: Scene[];
   presetsExpanded: boolean;
-  /** Some of the room's lights are streaming (sync) — the bridge ignores
+  /** Some of the room's lights are streaming (sync) - the bridge ignores
    *  regular commands to them, so the controls pause instead of pretending. */
   syncLocked: boolean;
   onPresetsExpandedChange: (expanded: boolean) => void;
@@ -67,7 +67,7 @@ export function RoomCard({
         : null,
     [daily, colorLights],
   );
-  // Derived from what the lights show — see findActivePreset in lib/presets.ts.
+  // Derived from what the lights show - see findActivePreset in lib/presets.ts.
   const active = useMemo(
     () => findActivePreset(lights, scenes, dailyPalette ? [...POPULAR_PALETTES, dailyPalette] : POPULAR_PALETTES),
     [lights, scenes, dailyPalette],

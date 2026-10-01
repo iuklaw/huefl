@@ -1,5 +1,5 @@
 // Logger for the TS side. Entries go to the Rust log store (src-tauri/src/logs.rs),
-// which persists them and echoes each one back as a "log-entry" event — so the
+// which persists them and echoes each one back as a "log-entry" event - so the
 // Logs tab shows JS and Rust entries from one ordered source.
 //
 // Entries are batched (a dragged slider must not mean one IPC call per step)
@@ -44,7 +44,7 @@ function write(level: LogLevel, source: LogSource, event: string, message: strin
     console[method](`[${source}] ${event}: ${message}`, entry.data ?? "");
   }
   buffer.push(entry);
-  // Errors go out right away — the app may be about to go down.
+  // Errors go out right away - the app may be about to go down.
   if (level === "error") flush();
   else timer ??= setTimeout(flush, FLUSH_MS);
 }

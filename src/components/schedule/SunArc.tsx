@@ -1,7 +1,7 @@
 // Day and night over the chosen place, as a clock: one arc from the
 // bottom-left corner to the bottom-right one, the same everywhere on Earth.
 // By day the sun walks it from sunrise to sunset; by night the moon walks it
-// from sunset to the next sunrise — by time, not by where they are in the sky
+// from sunset to the next sunrise - by time, not by where they are in the sky
 // (true positions loop near the tropics and hide below the horizon). So
 // there's always one of them on the arc; the moon shows its real phase.
 // Below: sunrise, a live countdown to the next sunrise or sunset, sunset.

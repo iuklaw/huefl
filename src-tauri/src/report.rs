@@ -9,7 +9,7 @@
 // `{"id": "…"}`. A build without the URL answers `not_configured`.
 //
 // Secrets: the bridge key and the stream key are removed by value from
-// everything that leaves the app — logs name fields freely, and a key can
+// everything that leaves the app - logs name fields freely, and a key can
 // hide inside a URL (a schedule's command address, for one).
 
 use std::time::Duration;
@@ -64,7 +64,7 @@ impl Transport {
     }
 }
 
-/// Facts about this machine that help reproduce a bug — nothing that
+/// Facts about this machine that help reproduce a bug - nothing that
 /// identifies the person (no host or user name).
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -101,7 +101,7 @@ pub fn bug_report_system_info() -> SystemInfo {
     }
 }
 
-/// The whole log on disk, oldest first, with secrets removed — a bug often
+/// The whole log on disk, oldest first, with secrets removed - a bug often
 /// starts well before the moment it's reported.
 #[tauri::command]
 pub fn bug_report_logs(store: State<'_, LogStore>) -> Vec<Value> {
@@ -146,7 +146,7 @@ fn secrets() -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Replaces every occurrence of each secret. Short values are skipped — they
+/// Replaces every occurrence of each secret. Short values are skipped - they
 /// can't be keys, and replacing them would mangle ordinary text.
 pub fn scrub(text: &str, secrets: &[String]) -> String {
     secrets

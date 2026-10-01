@@ -1,7 +1,7 @@
-// From a screen image to one color per light — the "ambilight" part.
+// From a screen image to one color per light - the "ambilight" part.
 //
 // 1. The frame (BGRX, as X11 delivers it) is reduced to a coarse grid of
-//    average colors (GRID_COLS × GRID_ROWS), sampling a few pixels per cell —
+//    average colors (GRID_COLS × GRID_ROWS), sampling a few pixels per cell -
 //    cheap even at 4K, and the rest works on a few hundred cells.
 // 2. Each light looks at the part of the screen matching its place in the
 //    sync area: x (-1 left … 1 right) → horizontal, height z (-1 floor …
@@ -14,7 +14,7 @@
 //    colors poorly. Higher intensity also narrows each light's view, for more
 //    local, contrasting colors.
 //
-// Pure — tested with synthetic frames.
+// Pure - tested with synthetic frames.
 
 use crate::sync::effects::Rgb;
 use crate::sync::entertainment::api::AreaChannel;
@@ -71,9 +71,9 @@ pub struct Grid {
 /// (Wayland) come in whatever the compositor negotiates.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PixelOrder {
-    /// B, G, R, x — also BGRA.
+    /// B, G, R, x - also BGRA.
     Bgrx,
-    /// R, G, B, x — also RGBA.
+    /// R, G, B, x - also RGBA.
     Rgbx,
     /// x, R, G, B
     Xrgb,

@@ -8,7 +8,7 @@
 // layers.
 //
 // Live (while sync streams): the lights' current colors, with height and
-// strength following how brightly they shine — loud music reaches the top,
+// strength following how brightly they shine - loud music reaches the top,
 // silence sinks to nothing. Updates ~12×/s, so a single layer is used; a slow
 // cross-fade would blur the rhythm. With reduced motion the height stays put
 // and only the strength follows.

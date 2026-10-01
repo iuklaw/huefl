@@ -1,5 +1,5 @@
 // All light schedules: the sky over the chosen place, where that is, and the
-// schedules room by room. They run on the bridge — this only shows and edits
+// schedules room by room. They run on the bridge - this only shows and edits
 // them (core/schedules.ts).
 
 import { useEffect, useState } from "react";

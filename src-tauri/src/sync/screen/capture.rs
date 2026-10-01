@@ -6,7 +6,7 @@
 // X11:
 //
 // MIT-SHM: the X server writes each frame straight into a shared-memory
-// segment instead of sending megabytes over the socket — a 1080p frame costs
+// segment instead of sending megabytes over the socket - a 1080p frame costs
 // a few milliseconds. ~25 captures per second is plenty for lights (the
 // bridge updates them at ~25 Hz anyway).
 //
@@ -28,7 +28,7 @@ use super::zones::Grid;
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Monitor {
-    /// RandR name, e.g. "HDMI-0", "eDP-1-1" — stable across restarts.
+    /// RandR name, e.g. "HDMI-0", "eDP-1-1" - stable across restarts.
     pub name: String,
     pub width: u16,
     pub height: u16,
@@ -398,7 +398,7 @@ pub fn shared_screen() -> Option<SharedScreen> {
     None
 }
 
-/// Wayland: "Change screen…" — the portal's dialog now; the answer is
+/// Wayland: "Change screen…" - the portal's dialog now; the answer is
 /// remembered for the next start. Declining keeps the previous choice.
 pub async fn pick_screen() -> Result<Option<SharedScreen>, StartError> {
     #[cfg(feature = "sync-screen-wayland")]

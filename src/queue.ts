@@ -5,8 +5,8 @@
 // far more than that, so commands are coalesced: for each resource we keep only
 // the latest state and send it no more often than every `minIntervalMs`.
 //
-// `isBusy(key)` tells whether a resource has a command waiting or in flight —
-// the UI shows "Syncing…" from that — and `onChange` fires whenever it may
+// `isBusy(key)` tells whether a resource has a command waiting or in flight -
+// the UI shows "Syncing…" from that - and `onChange` fires whenever it may
 // have changed.
 
 type Payload = Record<string, unknown>;

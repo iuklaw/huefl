@@ -1,5 +1,5 @@
 // Persistent settings, stored per XDG rather than next to the app so they
-// survive updates. The file holds the application key — treat it as a secret
+// survive updates. The file holds the application key - treat it as a secret
 // (mode 600). The UI owns the JSON shape (src/store.ts); this is mostly I/O.
 
 use std::fs::{self, DirBuilder, OpenOptions, Permissions};
@@ -54,6 +54,6 @@ pub fn save_config(contents: String) -> Result<(), String> {
         .open(&path)
         .map_err(|e| e.to_string())?;
     file.write_all(contents.as_bytes()).map_err(|e| e.to_string())?;
-    // `mode` only applies on creation — an existing file may have looser permissions.
+    // `mode` only applies on creation - an existing file may have looser permissions.
     fs::set_permissions(&path, Permissions::from_mode(0o600)).map_err(|e| e.to_string())
 }

@@ -91,7 +91,7 @@ export function DayChips({
   );
 }
 
-/** HH : MM with steppers — WebKitGTK's own time input is bare. */
+/** HH : MM with steppers - WebKitGTK's own time input is bare. */
 export function TimeField({
   hour,
   minute,

@@ -1,4 +1,4 @@
-// The HueStream v2 packet — what goes over the DTLS stream to the bridge.
+// The HueStream v2 packet - what goes over the DTLS stream to the bridge.
 //
 // Layout (all multi-byte values big-endian):
 //   "HueStream"           9 bytes, ASCII
@@ -11,7 +11,7 @@
 //   channels              7 bytes each, up to 20:
 //                           channel id (1) + three 16-bit values
 //
-// Pure — no I/O — so it is tested byte for byte.
+// Pure - no I/O - so it is tested byte for byte.
 
 pub const MAX_CHANNELS: usize = 20;
 const HEADER_LEN: usize = 16;

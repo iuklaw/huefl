@@ -17,7 +17,7 @@ npm-debug.log*
 .env.*
 !.env.example
 
-# Release signing keys — they live in ~/.tauri and in GitHub secrets, never here
+# Release signing keys - they live in ~/.tauri and in GitHub secrets, never here
 *.key
 *.key.pub
 *.pem

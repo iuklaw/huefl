@@ -5,7 +5,7 @@ import type { Gamut, Rgb, Xy } from "@/lib/color";
 export type BridgeCandidate = {
   id: string;
   ip: string;
-  /** "mdns" | "cloud" | "manual" — where it came from, shown in the UI */
+  /** "mdns" | "cloud" | "manual" - where it came from, shown in the UI */
   source: string;
 };
 
@@ -23,7 +23,7 @@ export type LightView = {
   on: boolean;
   /** 0..100, same as CLIP v2 */
   brightness: number;
-  /** What the light can do — from the CLIP v2 resource, not the model name.
+  /** What the light can do - from the CLIP v2 resource, not the model name.
    *  A smart plug has none of these. */
   capabilities: { dimming: boolean; temperature: boolean; color: boolean };
   /** color temperature in mireds; null when unsupported or in color (xy) mode */
@@ -41,7 +41,7 @@ export type LightView = {
 export type RoomView = {
   id: string;
   name: string;
-  /** the room's grouped_light service — one command for the whole room */
+  /** the room's grouped_light service - one command for the whole room */
   groupedLightId: string | null;
   /** The same room as an API v1 group ("81"), which bridge schedules address. */
   v1GroupId: string | null;
@@ -100,7 +100,7 @@ export type ScheduleLocation = {
   lon: number;
   /** IANA time zone of the place. */
   timeZone: string;
-  /** "Warsaw, Poland" — for display. */
+  /** "Warsaw, Poland" - for display. */
   name: string;
 };
 

@@ -26,12 +26,12 @@ import type { LightView, Palette, RoomView, Scene } from "@/types";
 
 type Props = {
   room: RoomView;
-  /** The room's lights — editing a preset can take their current look. */
+  /** The room's lights - editing a preset can take their current look. */
   lights: LightView[];
   scenes: Scene[];
   /** The preset the lights currently show (see findActivePreset). */
   active: ActivePreset | null;
-  /** Room-color accent for the current preset — kept faint on purpose. */
+  /** Room-color accent for the current preset - kept faint on purpose. */
   accent: { text: string; border: string };
   /** The color of the day, and the palette made from it for this room. */
   daily: { state: DailyState; palette: Palette | null };
@@ -43,7 +43,7 @@ const POPULAR_ROWS = 3;
 
 /**
  * The first `limit` items, or all when expanded. The current one stays in
- * view even when it's among the hidden — you should see what's on.
+ * view even when it's among the hidden - you should see what's on.
  */
 function visible<T>(items: T[], limit: number, expanded: boolean, isCurrent: (item: T) => boolean): T[] {
   if (expanded || items.length <= limit) return items;

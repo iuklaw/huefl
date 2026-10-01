@@ -2,10 +2,10 @@
 // screen into (zones::Grid, 32 × 18 cells), drawn as a soft miniature, with
 // a marker where each light looks and the color it shows.
 //
-// Drawn as a monitor — bezel, chin, stand — in CSS, so it follows the
+// Drawn as a monitor - bezel, chin, stand - in CSS, so it follows the
 // monitor's proportions and stays sharp at any size.
 //
-// Only the averaged cells ever reach the window — never the picture itself.
+// Only the averaged cells ever reach the window - never the picture itself.
 // The grid arrives as "sync-screen" ~10× a second and is painted straight
 // onto the canvas, without React re-rendering.
 

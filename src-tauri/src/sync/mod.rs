@@ -105,7 +105,7 @@ pub fn sync_audio_devices(app: AppHandle) -> Result<AudioDevices, AudioProblem> 
     devices
 }
 
-/// Wayland: "Change screen…" — the system's sharing dialog now, remembered
+/// Wayland: "Change screen…" - the system's sharing dialog now, remembered
 /// for the next start. Declining keeps the previous screen.
 #[tauri::command]
 pub async fn sync_screen_pick(app: AppHandle) -> Result<Option<screen::capture::SharedScreen>, String> {

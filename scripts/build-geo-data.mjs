@@ -45,7 +45,7 @@ for (const f of land.features) {
   for (const polygon of polygons) {
     for (const ring of polygon) {
       // Rings crossing the antimeridian jump by ~360°: unwrap them so they
-      // stay continuous, and draw a copy shifted back by 360° — the map's
+      // stay continuous, and draw a copy shifted back by 360° - the map's
       // viewBox clips each copy to its half.
       const unwrapped = [];
       for (const [lon, lat] of ring) {

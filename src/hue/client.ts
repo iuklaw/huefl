@@ -11,7 +11,7 @@
 //    The webview does not allow custom TLS verification, so the transport
 //    itself lives in Rust (src-tauri/src/hue.rs). Everything else is here.
 //
-// 2. The application key is created through the old v1 endpoint (POST /api) —
+// 2. The application key is created through the old v1 endpoint (POST /api) -
 //    still the only way, v2 included.
 
 import { Channel, invoke } from "@tauri-apps/api/core";
@@ -51,7 +51,7 @@ async function discoverViaMdns(): Promise<BridgeCandidate[]> {
     }
     return [...found.values()];
   } catch {
-    // No avahi-browse — not a problem, there is a fallback.
+    // No avahi-browse - not a problem, there is a fallback.
     return [];
   }
 }
@@ -233,7 +233,7 @@ export type HueEvent = {
   data: HueResource[];
 };
 
-/** Event stream messages — mirrors `StreamMessage` in hue.rs. */
+/** Event stream messages - mirrors `StreamMessage` in hue.rs. */
 type StreamMessage = { kind: "open" } | { kind: "data"; payload: string };
 
 let nextStreamId = 1;
@@ -252,7 +252,7 @@ export class HueClient {
     this.pin = { expected: settings.certFingerprint, seen: null };
   }
 
-  /** Fingerprint seen on the last connection — to be stored on first use. */
+  /** Fingerprint seen on the last connection - to be stored on first use. */
   get seenFingerprint(): string | null {
     return this.pin.seen;
   }
@@ -282,7 +282,7 @@ export class HueClient {
   }
 
   /**
-   * API v1 (/api/<key>/…) — still the only way to create schedules and rules
+   * API v1 (/api/<key>/…) - still the only way to create schedules and rules
    * that run on the bridge. Writes answer with a list of `success` / `error`
    * entries; an error entry throws.
    */
@@ -325,7 +325,7 @@ export class HueClient {
    * need to poll. Returns a stop function.
    *
    * Rust handles the connection and frame splitting; reconnecting with an
-   * increasing backoff is done here — the bridge drops the connection on
+   * increasing backoff is done here - the bridge drops the connection on
    * firmware restarts or IP changes.
    */
   subscribe(onEvent: (events: HueEvent[]) => void, onStatus?: (ok: boolean) => void): () => void {
@@ -350,7 +350,7 @@ export class HueClient {
           try {
             onEvent(JSON.parse(message.payload) as HueEvent[]);
           } catch {
-            // Incomplete frame — skip it.
+            // Incomplete frame - skip it.
           }
         };
 

@@ -140,7 +140,7 @@ impl BridgeAccess {
 #[serde(rename_all = "camelCase")]
 pub struct SyncLight {
     pub light_id: String,
-    /// The light's `entertainment` service — what an area lists.
+    /// The light's `entertainment` service - what an area lists.
     pub service_id: Option<String>,
     /// Whether it can take a stream (color light with recent firmware).
     pub renderer: bool,

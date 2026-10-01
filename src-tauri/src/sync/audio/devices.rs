@@ -15,10 +15,10 @@ pub struct AudioDevices {
     pub system: Option<String>,
     /// Label of the default input.
     pub microphone: Option<String>,
-    /// PulseAudio names — compared to notice the user switching devices.
+    /// PulseAudio names - compared to notice the user switching devices.
     #[serde(skip)]
     pub system_id: Option<String>,
-    /// The default output's monitor source, as the server names it — what
+    /// The default output's monitor source, as the server names it - what
     /// "System audio" records. (`@DEFAULT_MONITOR@` can't be trusted: on
     /// pipewire-pulse 0.3.48 it resolved to the microphone.)
     #[serde(skip)]
@@ -26,9 +26,9 @@ pub struct AudioDevices {
     #[serde(skip)]
     pub microphone_id: Option<String>,
     /// Recording from a Bluetooth headset's microphone switches it to its
-    /// low-quality call mode — worth a hint in the UI.
+    /// low-quality call mode - worth a hint in the UI.
     pub microphone_bluetooth: bool,
-    /// "PulseAudio (on PipeWire 0.3.48) 15.0.0" — for bug reports.
+    /// "PulseAudio (on PipeWire 0.3.48) 15.0.0" - for bug reports.
     #[serde(skip)]
     pub server: Option<String>,
 }
@@ -53,7 +53,7 @@ pub fn device_label(port: Option<&str>, description: Option<&str>) -> Option<Str
 }
 
 /// The exact source to record for `input`, from what `default_devices` found.
-/// System audio needs the output's monitor — never a guess that could land on
+/// System audio needs the output's monitor - never a guess that could land on
 /// the microphone. `Ok(None)` means "the server's default input".
 pub fn capture_device(microphone: bool, devices: &AudioDevices) -> Result<Option<String>, String> {
     if microphone {

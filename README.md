@@ -1,23 +1,23 @@
-# HueFL — Philips Hue for Linux
+# HueFL - Philips Hue for Linux
 
-Control your Philips Hue lights and sync them with your music and your screen. HueFL talks to the Hue Bridge directly on your local network — no Philips account, no cloud.
+Control your Philips Hue lights and sync them with your music and your screen. HueFL talks to the Hue Bridge directly on your local network - no Philips account, no cloud.
 
 Built with [Tauri 2](https://tauri.app) (Rust + the system webview) and React.
 
 ## Features
 
-- **Rooms and lights** — on/off, brightness, color wheel and white temperature, per room or per light; changes made elsewhere (the Hue app, a dimmer switch) show up instantly.
-- **Color presets** — save a room's look and recall it in one click, edit or rename it later, pick from popular palettes, or use the **Color of the day**.
+- **Rooms and lights** - on/off, brightness, color wheel and white temperature, per room or per light; changes made elsewhere (the Hue app, a dimmer switch) show up instantly.
+- **Color presets** - save a room's look and recall it in one click, edit or rename it later, pick from popular palettes, or use the **Color of the day**.
 - **Light sync** over the Hue Entertainment API (~50 updates per second):
-  - **Music** — lights follow system audio or a microphone (PulseAudio / PipeWire), with *Pulse* and *Spectrum* styles and a live spectrum view.
-  - **Screen** — each light takes the color of the part of the screen it sits by ("ambilight"); X11 and Wayland, with a live preview.
-  - **Ambient** — a palette drifting slowly across the lights.
+  - **Music** - lights follow system audio or a microphone (PulseAudio / PipeWire), with *Pulse* and *Spectrum* styles and a live spectrum view.
+  - **Screen** - each light takes the color of the part of the screen it sits by ("ambilight"); X11 and Wayland, with a live preview.
+  - **Ambient** - a palette drifting slowly across the lights.
   - A photosensitivity safe mode (on by default) limits flashes to three per second.
-- **Schedules that run on the bridge** — on/off at a set time, timers ("turn off in 15 min", "on for 20 min"), and sunrise / sunset with offsets. They keep working with your computer off.
+- **Schedules that run on the bridge** - on/off at a set time, timers ("turn off in 15 min", "on for 20 min"), and sunrise / sunset with offsets. They keep working with your computer off.
 - **Sun and moon view** for your location, picked on an offline world map.
-- **System tray** — rooms, sync and the window are one click away; the app keeps running when its window is closed.
-- **Private by design** — the bridge key stays on your machine; the bridge certificate is pinned on first use, like SSH.
-- **Updates in the app** — new versions are announced in the title bar and installed in place (signed releases).
+- **System tray** - rooms, sync and the window are one click away; the app keeps running when its window is closed.
+- **Private by design** - the bridge key stays on your machine; the bridge certificate is pinned on first use, like SSH.
+- **Updates in the app** - new versions are announced in the title bar and installed in place (signed releases).
 - Light and dark theme, following the system.
 
 ## Install
@@ -43,11 +43,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#building-from-source).
 
 ## Requirements
 
-- **Linux, x86_64** — Ubuntu 22.04 or newer, Debian 12+, Fedora, Arch, SteamOS and others with WebKitGTK 4.1.
+- **Linux, x86_64** - Ubuntu 22.04 or newer, Debian 12+, Fedora, Arch, SteamOS and others with WebKitGTK 4.1.
 - **A Philips Hue Bridge** on the same network. Light sync needs a **Hue Bridge v2** and color lights.
-- **System tray** — works out of the box on KDE, Cinnamon, XFCE and Ubuntu's GNOME. On plain GNOME, install the [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/).
-- **Music sync** — PulseAudio, or PipeWire with `pipewire-pulse` (the default on current desktops).
-- **Screen sync** — an X11 session, or Wayland with a screen-sharing portal (`xdg-desktop-portal-kde`, `-gnome` or `-wlr`).
+- **System tray** - works out of the box on KDE, Cinnamon, XFCE and Ubuntu's GNOME. On plain GNOME, install the [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/).
+- **Music sync** - PulseAudio, or PipeWire with `pipewire-pulse` (the default on current desktops).
+- **Screen sync** - an X11 session, or Wayland with a screen-sharing portal (`xdg-desktop-portal-kde`, `-gnome` or `-wlr`).
 
 ## Usage
 
@@ -61,7 +61,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#building-from-source).
 
 1. Open the **Sync** tab. A checklist shows what's ready and what's missing.
 2. If you don't have one yet, create a **sync area**: choose its purpose, the lights, and where they stand. Areas made in the Philips Hue app work too.
-3. Choose a mode — **Ambient**, **Music** or **Screen** — the colors and the intensity, then **Start sync**.
+3. Choose a mode - **Ambient**, **Music** or **Screen** - the colors and the intensity, then **Start sync**.
 
 Sync keeps running while the window is in the tray. When it stops, your lights return to how they were.
 

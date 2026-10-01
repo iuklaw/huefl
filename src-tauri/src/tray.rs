@@ -2,7 +2,7 @@
 //
 // Owned by Rust on purpose: WebKitGTK suspends JS in a hidden window, so a
 // tray whose menu callbacks go through the webview stops responding as soon as
-// the app is hidden — which is exactly when a tray app gets used. Here every
+// the app is hidden - which is exactly when a tray app gets used. Here every
 // menu action is handled natively, including sending commands to the bridge.
 //
 // The UI still owns the Hue state and pushes the part the menu needs through
@@ -11,7 +11,7 @@
 // window is shown again; actions taken from the tray itself are always applied.
 //
 // Linux note: the tray goes through Ayatana AppIndicator, which does NOT report
-// clicks on the icon itself — only menu actions. That is why the menu is set
+// clicks on the icon itself - only menu actions. That is why the menu is set
 // when the icon is created and restoring the window is a menu item, not a left
 // click.
 
@@ -56,7 +56,7 @@ pub struct TrayRoom {
     grouped_light_id: Option<String>,
 }
 
-/// What the menu is built from — mirrors `syncTray()` in src/main.ts.
+/// What the menu is built from - mirrors `syncTray()` in src/main.ts.
 #[derive(Clone, PartialEq, Deserialize, Default)]
 pub struct TrayModel {
     status: Status,
@@ -79,7 +79,7 @@ struct RoomChanged {
 pub fn init(app: &AppHandle) -> tauri::Result<()> {
     app.manage(TrayState::default());
 
-    // The menu must exist from the start — an AppIndicator requirement.
+    // The menu must exist from the start - an AppIndicator requirement.
     let menu = build_menu(app, &TrayModel::default())?;
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(Image::from_bytes(ICON_OFF)?)
@@ -139,7 +139,7 @@ fn build_menu(app: &AppHandle, model: &TrayModel) -> tauri::Result<Menu<Wry>> {
     Ok(menu)
 }
 
-/// Rebuilds the menu from the current model — e.g. when sync starts or stops.
+/// Rebuilds the menu from the current model - e.g. when sync starts or stops.
 pub fn refresh(app: &AppHandle) {
     let Some(state) = app.try_state::<TrayState>() else { return };
     let model = state.0.lock().unwrap().clone();
@@ -229,7 +229,7 @@ fn rooms(app: &AppHandle) -> Vec<TrayRoom> {
 }
 
 /// Turns rooms on/off: optimistic menu update, UI notification, then one PUT
-/// per room's grouped_light straight to the bridge — no JS involved.
+/// per room's grouped_light straight to the bridge - no JS involved.
 fn set_rooms(app: &AppHandle, changes: Vec<(String, bool)>) {
     let Some(settings) = config::read_bridge_settings() else {
         logs::write(app, "warn", "tray", "tray.no_bridge", "Tray action ignored: no bridge settings", None);

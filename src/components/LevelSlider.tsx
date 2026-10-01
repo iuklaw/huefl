@@ -3,7 +3,7 @@
 // While dragging it shows its own value: the core publishes optimistic state
 // and bridge events on every step, and following those would make the thumb
 // jitter. After release it goes back to following `value`. Commands are sent
-// on every step — CommandQueue coalesces them to the bridge's rate limits.
+// on every step - CommandQueue coalesces them to the bridge's rate limits.
 
 import { useState, type ReactNode } from "react";
 import { Slider } from "@/components/ui/slider";
@@ -19,7 +19,7 @@ type Props = {
   variant?: "level" | "temperature";
   disabled?: boolean;
   onChange: (value: number) => void;
-  /** Called once when the user releases the thumb — for logging the final value. */
+  /** Called once when the user releases the thumb - for logging the final value. */
   onCommit?: (value: number) => void;
   className?: string;
 };

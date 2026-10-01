@@ -49,8 +49,8 @@ export async function fetchSnapshot(client: HueClient): Promise<Snapshot> {
 }
 
 /**
- * Applies an eventstream event to the snapshot. Events are partial — only
- * what changed is sent — and that holds inside nested objects too: a color
+ * Applies an eventstream event to the snapshot. Events are partial - only
+ * what changed is sent - and that holds inside nested objects too: a color
  * change arrives as `{color: {xy}}` without `gamut`, a temperature change as
  * `{color_temperature: {mirek}}` without `mirek_schema`. So nested objects
  * are merged one level deep instead of being replaced.
@@ -83,7 +83,7 @@ export function applyEvent(snapshot: Snapshot, resource: HueResource): boolean {
 
 /**
  * A command as the partial resource the bridge would report once it is
- * applied — for optimistic updates. Fed through `applyEvent` like a real
+ * applied - for optimistic updates. Fed through `applyEvent` like a real
  * event, so the snapshot is the single source of truth: a later event for one
  * light cannot roll back another light's pending change, and real events
  * still overwrite the prediction.

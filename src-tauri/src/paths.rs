@@ -1,5 +1,5 @@
 // Where HueFL keeps its files (XDG), and moving them over from the app's old
-// name ("hue-tray") — so a renamed install keeps its pairing, presets and
+// name ("hue-tray") - so a renamed install keeps its pairing, presets and
 // logs instead of starting from scratch.
 //
 //   config  $XDG_CONFIG_HOME/huefl/config.json      (was …/hue-tray/)

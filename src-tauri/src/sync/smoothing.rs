@@ -1,6 +1,6 @@
 // Making raw audio features pleasant to look at, and safe.
 //
-// `Envelope`: fast attack, slower release — lights jump up with a hit and fade
+// `Envelope`: fast attack, slower release - lights jump up with a hit and fade
 // out, instead of flickering with every sample.
 //
 // `SafetyLimiter`: photosensitivity guard (WCAG 2.3.1: no more than three
@@ -37,7 +37,7 @@ pub struct SafetyLimiter {
     clock: f32,
     flashes: VecDeque<f32>,
     last: Vec<f32>,
-    /// Flashes held back — reported in the sync stats.
+    /// Flashes held back - reported in the sync stats.
     pub limited: u32,
 }
 

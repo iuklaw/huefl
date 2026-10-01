@@ -72,7 +72,7 @@ export async function buildReport(input: {
 
 /**
  * Sends to the report server set when building; resolves with the report's
- * id there — or null in a build without one, where sending does nothing yet.
+ * id there - or null in a build without one, where sending does nothing yet.
  */
 export async function sendReport(report: BugReport): Promise<string | null> {
   try {
@@ -88,7 +88,7 @@ export async function sendReport(report: BugReport): Promise<string | null> {
  * only the log's end (what's sent is always whole).
  */
 export function reportMarkdown(report: BugReport, lastLogLines?: number): string {
-  const lines = [`## Bug report — HueFL ${report.app.version}`, "", report.description, ""];
+  const lines = [`## Bug report - HueFL ${report.app.version}`, "", report.description, ""];
   if (report.system) {
     const s = report.system;
     lines.push(

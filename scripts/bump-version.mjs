@@ -1,7 +1,7 @@
 // Sets the app's version everywhere it lives: package.json, Cargo.toml and
 // tauri.conf.json (the one the updater compares). Usage:
 //   node scripts/bump-version.mjs 0.2.0
-// Then commit, tag v0.2.0 and push the tag — the Release workflow builds it.
+// Then commit, tag v0.2.0 and push the tag - the Release workflow builds it.
 
 import { readFileSync, writeFileSync } from "node:fs";
 

@@ -1,6 +1,6 @@
 // The clock button on a room card: quick timers (a typed-in number of
-// minutes) that fit the room's state — "off in" / "off for" while it's on,
-// "on for" / "on in" while it's off — a custom timer, a new schedule, the list.
+// minutes) that fit the room's state - "off in" / "off for" while it's on,
+// "on for" / "on in" while it's off - a custom timer, a new schedule, the list.
 
 import { useState } from "react";
 import { AlarmClock, CalendarClock, ListChecks, Play, Timer } from "lucide-react";
@@ -133,7 +133,7 @@ function QuickTimer({
         size="icon-xs"
         variant="ghost"
         className="ml-auto"
-        aria-label={`${label} — ${t("schedule.start")}`}
+        aria-label={`${label} - ${t("schedule.start")}`}
         title={t("schedule.start")}
         disabled={!(Number(value) > 0)}
         onClick={start}

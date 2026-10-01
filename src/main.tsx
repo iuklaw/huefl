@@ -18,5 +18,5 @@ createRoot(document.getElementById("root")!).render(
   </StrictMode>,
 );
 
-// The core runs outside React — StrictMode's double effects must not start it twice.
+// The core runs outside React - StrictMode's double effects must not start it twice.
 void start();

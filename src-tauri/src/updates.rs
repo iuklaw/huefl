@@ -100,7 +100,7 @@ pub async fn update_install(
     pending: State<'_, PendingUpdate>,
     on_progress: Channel<Progress>,
 ) -> Result<(), String> {
-    let update = pending.0.lock().unwrap().take().ok_or("No update to install — check again.")?;
+    let update = pending.0.lock().unwrap().take().ok_or("No update to install - check again.")?;
     let version = update.version.clone();
     let mut downloaded: u64 = 0;
     let result = update
@@ -124,7 +124,7 @@ pub async fn update_install(
     }
 }
 
-/// Restarts into the new version — after ending a running sync, so the
+/// Restarts into the new version - after ending a running sync, so the
 /// lights are given back first.
 #[tauri::command]
 pub fn update_restart(app: AppHandle) {

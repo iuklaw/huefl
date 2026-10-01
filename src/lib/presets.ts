@@ -1,5 +1,5 @@
 // Pure logic behind color history, saved scenes and popular palettes: what to
-// store and which commands to send. No I/O here — core/app.ts does that.
+// store and which commands to send. No I/O here - core/app.ts does that.
 //
 // Every command respects what a light can do (see LightView.capabilities):
 // color lights get xy clamped to their own gamut, white-ambiance lights get the
@@ -144,7 +144,7 @@ function matches(command: LightCommand, light: LightView): boolean {
     return false;
   }
   if (command.xy) {
-    // In white mode the bridge's xy is stale — a color scene cannot match.
+    // In white mode the bridge's xy is stale - a color scene cannot match.
     if (light.mirek !== null || !light.xy) return false;
     if (Math.abs(light.xy.x - command.xy.x) > MATCH_XY) return false;
     if (Math.abs(light.xy.y - command.xy.y) > MATCH_XY) return false;
@@ -190,7 +190,7 @@ export function findActivePreset(
   return null;
 }
 
-/** A palette's colors as "#RRGGBB" — what the sync engine takes. */
+/** A palette's colors as "#RRGGBB" - what the sync engine takes. */
 export function paletteHex(palette: Palette): string[] {
   if (palette.mirek !== undefined) return [toHex(mirekToRgb(palette.mirek))];
   return palette.colors ?? [];

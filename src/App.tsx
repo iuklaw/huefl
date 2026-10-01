@@ -28,9 +28,9 @@ export function App() {
   const live = syncStatus.state === "streaming" && preview.length > 0 ? liveGlow(preview) : null;
   const [view, setView] = useState<View>({ name: "home" });
   const [closeOpen, setCloseOpen] = useState(false);
-  /** Lights or Sync — the two main views under the title bar. */
+  /** Lights or Sync - the two main views under the title bar. */
   const [mainTab, setMainTab] = useState<MainTab>("lights");
-  /** Expanded rooms ("Lights") and lights (color) — kept here so it survives visiting Options.
+  /** Expanded rooms ("Lights") and lights (color) - kept here so it survives visiting Options.
    *  Room and light ids are UUIDs, so one set holds both. */
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 

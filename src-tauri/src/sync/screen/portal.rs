@@ -469,7 +469,7 @@ unsafe fn pod_bytes<'a>(param: *const spa_sys::spa_pod) -> &'a [u8] {
 ///
 /// Read by hand rather than with libspa's deserializer: a negotiated format
 /// keeps its values wrapped in (fixated) choices, and may carry properties
-/// the deserializer doesn't know — both made it give up, which left the
+/// the deserializer doesn't know - both made it give up, which left the
 /// picture black on KDE.
 fn parse_format(bytes: &[u8]) -> Result<(usize, usize, PixelOrder), String> {
     let props = object_properties(bytes).ok_or("not a format object")?;
@@ -563,7 +563,7 @@ mod tests {
     }
 
     /// What KWin and Mutter actually send: fixated values still wrapped in
-    /// choices of type None — the cause of the black picture on the Deck.
+    /// choices of type None - the cause of the black picture on the Deck.
     #[test]
     fn reads_values_wrapped_in_fixated_choices() {
         let pod = serialize(&format_object(

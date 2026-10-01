@@ -1,4 +1,4 @@
-// "Color of the day" from colors.zoodinkers.com — one color a day, which the
+// "Color of the day" from colors.zoodinkers.com - one color a day, which the
 // UI spreads into a palette for a room's lights (lib/color.ts).
 //
 // Fetched here because the webview's CSP keeps it off the internet. One

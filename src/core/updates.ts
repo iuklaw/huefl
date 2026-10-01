@@ -56,7 +56,7 @@ const FIRST_CHECK_MS = 10_000;
 const EVERY_MS = 6 * 3_600_000;
 
 export const updates = {
-  /** `manual`: from "Check for updates" — shows "up to date" or the error. */
+  /** `manual`: from "Check for updates" - shows "up to date" or the error. */
   async check(manual = false): Promise<void> {
     if (state.status === "checking" || state.status === "downloading" || state.status === "ready") return;
     if (manual) set({ status: "checking" });
@@ -101,7 +101,7 @@ export const updates = {
   },
 };
 
-// Automatic checks: shortly after start, then every few hours — if enabled.
+// Automatic checks: shortly after start, then every few hours - if enabled.
 let timer: ReturnType<typeof setTimeout> | null = null;
 function schedule(delay: number): void {
   if (timer) clearTimeout(timer);

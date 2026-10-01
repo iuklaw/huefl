@@ -40,7 +40,7 @@ cd src-tauri && cargo test --lib # Rust
 cargo clippy --all-targets
 ```
 
-Some Rust tests talk to real hardware — your bridge, your speakers, your screen — so they're marked `#[ignore]` and run by hand, e.g.:
+Some Rust tests talk to real hardware - your bridge, your speakers, your screen - so they're marked `#[ignore]` and run by hand, e.g.:
 
 ```bash
 cd src-tauri
@@ -59,7 +59,7 @@ src/                     React UI (TypeScript)
   hue/                   bridge API: discovery, pairing, resources, event stream, schedules
   components/, views/    UI; components/ui/ is shadcn/ui (npx shadcn add …)
   lib/                   pure helpers: colors, presets, sun, time zones
-  locales/en.json        all texts — shared by TypeScript and Rust
+  locales/en.json        all texts - shared by TypeScript and Rust
 src-tauri/src/           Rust
   hue.rs                 HTTPS to the bridge with certificate pinning, event stream, discovery
   tray.rs, window.rs     tray icon and menu, window show / hide
@@ -76,7 +76,7 @@ A few things that shape the design:
 - **The bridge certificate can't be verified the usual way** (its CN is the bridge id, there's no SAN, Signify's root isn't published). HueFL pins it on first use (TOFU), like SSH.
 - **The bridge rate-limits commands** (~10/s per light, ~1/s per group). `CommandQueue` keeps only the latest state per resource; the UI updates optimistically and the event stream (`/eventstream/clip/v2`) brings the truth.
 - **Schedules run on the bridge** (API v1 schedules and rules), so they work with the computer off. HueFL's entries are named with an `HF·` prefix.
-- **Logic that can be pure is pure and tested** — packet encoding, audio analysis, screen zones, schedules, sun times, palettes.
+- **Logic that can be pure is pure and tested** - packet encoding, audio analysis, screen zones, schedules, sun times, palettes.
 
 ### Translations
 
@@ -88,7 +88,7 @@ Texts are in `src/locales/en.json`. To add a language, create `src/locales/<code
 
 ## Releases
 
-Releases are built by GitHub Actions (`.github/workflows/release.yml`) on Ubuntu 22.04 — the oldest glibc the app supports — when a `v*` tag is pushed:
+Releases are built by GitHub Actions (`.github/workflows/release.yml`) on Ubuntu 22.04 - the oldest glibc the app supports - when a `v*` tag is pushed:
 
 ```bash
 node scripts/bump-version.mjs 0.2.0     # package.json, Cargo.toml, tauri.conf.json

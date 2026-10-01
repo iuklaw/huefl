@@ -1,5 +1,5 @@
 // Turns raw audio into what the lights react to: loudness, three frequency
-// bands, and beats. Pure — fed with sample blocks, no devices — so it is
+// bands, and beats. Pure - fed with sample blocks, no devices - so it is
 // tested with synthetic signals.
 //
 //   FFT (1024 samples, Hann window, 48 kHz → ~47 Hz per bin)
@@ -46,7 +46,7 @@ pub fn spectrum_band(index: usize) -> (f32, f32) {
     (edge(index), edge(index + 1))
 }
 
-/// What the effects read. `beats` counts up — a reader that polls less often
+/// What the effects read. `beats` counts up - a reader that polls less often
 /// than the analyzer runs still sees every beat.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Features {

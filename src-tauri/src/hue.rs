@@ -1,7 +1,7 @@
 // Transport to the Hue bridge: HTTPS with certificate pinning, and the event stream.
 //
 // The bridge certificate carries the bridge ID in the CN instead of a hostname,
-// has no SAN, and the Signify root is not published anywhere — regular TLS
+// has no SAN, and the Signify root is not published anywhere - regular TLS
 // verification cannot pass. Instead: TOFU as in SSH. On first connection the
 // certificate's SHA-256 is stored (the TS side does that), and later
 // connections compare against it. Handshake signature verification stays normal.
@@ -128,7 +128,7 @@ impl PinnedClient {
         self.seen.lock().unwrap().clone()
     }
 
-    /// A readable message — a fingerprint mismatch instead of a generic TLS error.
+    /// A readable message - a fingerprint mismatch instead of a generic TLS error.
     fn explain(&self, error: &reqwest::Error) -> String {
         if let (Some(expected), Some(seen)) = (&self.expected, self.seen()) {
             if *expected != seen {
@@ -142,7 +142,7 @@ impl PinnedClient {
     }
 }
 
-/// The full error chain — `reqwest::Error` alone only says "error sending request".
+/// The full error chain - `reqwest::Error` alone only says "error sending request".
 fn describe(error: &dyn StdError) -> String {
     let mut text = error.to_string();
     let mut source = error.source();
@@ -154,7 +154,7 @@ fn describe(error: &dyn StdError) -> String {
     text
 }
 
-/// The bridge is addressed by IP only — this also limits where the webview can
+/// The bridge is addressed by IP only - this also limits where the webview can
 /// send requests with standard TLS verification turned off.
 fn base_url(ip: &str) -> Result<String, String> {
     match ip.trim().parse::<IpAddr>() {
@@ -166,7 +166,7 @@ fn base_url(ip: &str) -> Result<String, String> {
 
 #[derive(Default)]
 pub struct HueState {
-    /// Clients per (ip, pin) — so TLS is not set up from scratch for every command.
+    /// Clients per (ip, pin) - so TLS is not set up from scratch for every command.
     clients: Mutex<HashMap<String, Arc<PinnedClient>>>,
     /// Open event streams: id -> stop signal.
     streams: Mutex<HashMap<u32, oneshot::Sender<()>>>,
@@ -207,7 +207,7 @@ pub async fn hue_request(
     send_request(&state, &ip, &method, &path, headers, body, pin).await
 }
 
-/// A single request to the bridge — shared by the `hue_request` command and
+/// A single request to the bridge - shared by the `hue_request` command and
 /// the tray, which sends commands itself (see tray.rs).
 pub async fn send_request(
     state: &HueState,
@@ -241,7 +241,7 @@ pub async fn send_request(
     })
 }
 
-/// Stream messages — mirrors `StreamMessage` in src/hue/client.ts.
+/// Stream messages - mirrors `StreamMessage` in src/hue/client.ts.
 #[derive(Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum StreamMessage {
@@ -324,7 +324,7 @@ pub fn hue_stream_close(state: State<'_, HueState>, id: u32) {
 // --- Discovery ---------------------------------------------------------------
 
 /// Raw output of `avahi-browse -rpt _hue._tcp`; TS does the parsing.
-/// Empty when avahi is missing — TS then falls back to cloud discovery.
+/// Empty when avahi is missing - TS then falls back to cloud discovery.
 #[tauri::command]
 pub async fn avahi_browse() -> String {
     let output = tokio::process::Command::new("avahi-browse")
@@ -340,7 +340,7 @@ pub async fn avahi_browse() -> String {
     }
 }
 
-/// Signify's cloud endpoint — CORS would block it from the webview.
+/// Signify's cloud endpoint - CORS would block it from the webview.
 #[tauri::command]
 pub async fn discover_cloud() -> Result<String, String> {
     let response = reqwest::Client::new()

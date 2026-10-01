@@ -1,5 +1,5 @@
 // Time zone helpers. Schedules run on the bridge, in the bridge's time zone,
-// which need not be the computer's — so times are shown in that zone.
+// which need not be the computer's - so times are shown in that zone.
 
 import { locale } from "@/i18n";
 

@@ -1,6 +1,6 @@
-// Core: Hue state, bridge connection, preferences — independent of React.
+// Core: Hue state, bridge connection, preferences - independent of React.
 //
-// The logic lives in the single webview. The window is never destroyed — the
+// The logic lives in the single webview. The window is never destroyed - the
 // close button hides it or quits, depending on the user's choice (see
 // on_window_event in src-tauri/src/lib.rs and requestClose in App.tsx).
 //
@@ -45,7 +45,7 @@ let client: HueClient | null = null;
 let snapshot: Snapshot | null = null;
 let unsubscribe: (() => void) | null = null;
 
-/** Reconnect after a failed connect — one transient bridge error (an overload
+/** Reconnect after a failed connect - one transient bridge error (an overload
  *  page, a Wi-Fi hiccup) must not leave the app stuck until restart. */
 const RETRY_MIN_MS = 5_000;
 const RETRY_MAX_MS = 60_000;
@@ -138,7 +138,7 @@ export const actions: Actions = {
   forget: async () => {
     log.info("app", "bridge.forget", `Forgot the bridge at ${settings.bridgeIp ?? "?"}`);
     disconnect();
-    // Only the pairing is forgotten — preferences stay.
+    // Only the pairing is forgotten - preferences stay.
     settings = { ...settings, ...NO_BRIDGE };
     await saveSettings(settings);
     patchState({ status: "unconfigured", error: null, rooms: [], lights: [], bridge: null });
@@ -393,12 +393,12 @@ async function applyLightCommand(command: LightCommand, { silent = false } = {})
 //
 // A room is "syncing" while a command for it or one of its lights is queued or
 // in flight, and after that until the bridge reports the room's new aggregate
-// (a grouped_light event) — that event is what moves the room slider after a
+// (a grouped_light event) - that event is what moves the room slider after a
 // light slider was dragged. SYNC_EVENT_TIMEOUT_MS caps the wait, since no
 // event comes when nothing actually changed.
 
 const SYNC_EVENT_TIMEOUT_MS = 2_500;
-/** Rooms busy on the previous recompute — to detect the busy → idle edge. */
+/** Rooms busy on the previous recompute - to detect the busy → idle edge. */
 const busyRooms = new Set<string>();
 /** roomId -> time we stop waiting for its grouped_light event */
 const awaitingEvent = new Map<string, number>();
@@ -505,7 +505,7 @@ async function connect({ retry = false } = {}): Promise<void> {
     client = new HueClient(settings);
     snapshot = await fetchSnapshot(client);
 
-    // First successful contact — store the certificate fingerprint (TOFU).
+    // First successful contact - store the certificate fingerprint (TOFU).
     if (!settings.certFingerprint && client.seenFingerprint) {
       settings = { ...settings, certFingerprint: client.seenFingerprint };
       await saveSettings(settings);
@@ -594,7 +594,7 @@ function updateLibrary(next: Library): Promise<void> {
 /**
  * Optimistic update through the snapshot, exactly like a bridge event. Keeping
  * predictions out of the snapshot (patching only `state`) made every partial
- * event roll other pending lights back for a moment — e.g. the current-preset
+ * event roll other pending lights back for a moment - e.g. the current-preset
  * border blinking after applying a preset.
  */
 function applyLocally(resource: HueResource): void {
@@ -674,7 +674,7 @@ export async function start(): Promise<void> {
     });
 
     // The app starts in its window, centered (tauri.conf.json). It is created
-    // hidden and shown here, once the UI can paint — no blank flash.
+    // hidden and shown here, once the UI can paint - no blank flash.
     await showWindow();
 
     await connect();

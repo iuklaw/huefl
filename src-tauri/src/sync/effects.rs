@@ -2,7 +2,7 @@
 // input (nothing, audio features, later the screen) into one color per channel.
 //
 // The stream thread calls `render` 50 times a second. Effects hold no devices
-// themselves — MusicEffect only reads shared `Features` — so all are testable.
+// themselves - MusicEffect only reads shared `Features` - so all are testable.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -36,7 +36,7 @@ pub trait Effect: Send {
         0
     }
 
-    /// The input (audio) is gone for now — the UI says it is waiting.
+    /// The input (audio) is gone for now - the UI says it is waiting.
     fn input_lost(&self) -> bool {
         false
     }
@@ -84,7 +84,7 @@ pub enum MusicStyle {
 
 impl MusicStyle {
     pub fn parse(value: Option<&str>) -> Self {
-        // Anything unknown — including the retired "beat" — plays as Pulse.
+        // Anything unknown - including the retired "beat" - plays as Pulse.
         match value {
             Some("spectrum") => Self::Spectrum,
             _ => Self::Pulse,
@@ -208,7 +208,7 @@ const SCREEN_FOLLOW: [f32; 4] = [0.5, 0.25, 0.12, 0.05];
 
 /// Each light follows the part of the screen matching its place in the area
 /// (screen::zones). Colors glide rather than jump; the safe mode caps flashes
-/// here too — films and games have explosions and strobes.
+/// here too - films and games have explosions and strobes.
 pub struct ScreenEffect {
     grid: Arc<Mutex<Option<Grid>>>,
     follow: f32,
@@ -306,7 +306,7 @@ pub fn sample_cyclic(palette: &[Rgb], t: f32) -> Rgb {
     [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]
 }
 
-/// "#RRGGBB" to linear-light RGB (sRGB gamma removed — lights mix in linear).
+/// "#RRGGBB" to linear-light RGB (sRGB gamma removed - lights mix in linear).
 pub fn parse_hex(hex: &str) -> Option<Rgb> {
     let hex = hex.trim_start_matches('#');
     if hex.len() != 6 {

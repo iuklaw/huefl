@@ -100,7 +100,7 @@ const HORIZON_ALTITUDE = { sun: -0.27, moon: -0.27 };
 const SEARCH_MS = 36 * 3_600_000;
 
 /**
- * The pass going on now, or the next one if the body is below the horizon —
+ * The pass going on now, or the next one if the body is below the horizon -
  * one continuous arc, unlike a calendar day, which cuts the moon's trip in
  * two when it crosses midnight.
  */

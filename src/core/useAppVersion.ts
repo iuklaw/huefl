@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 
-// The app version from tauri.conf.json — one source for About and the footer.
+// The app version from tauri.conf.json - one source for About and the footer.
 // Fetched once per session; later components get the cached value.
 let cached: string | null = null;
 let pending: Promise<string> | null = null;

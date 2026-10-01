@@ -5,8 +5,8 @@
 // its own. Session-only by design: after a restart the WM decides.
 // (Wayland does not let apps position windows; there this is a no-op.)
 //
-// Every hide/show goes through here — the UI's "Minimize to tray" and the
-// tray's "Show window" — so the position is recorded in one place.
+// Every hide/show goes through here - the UI's "Minimize to tray" and the
+// tray's "Show window" - so the position is recorded in one place.
 
 use std::sync::Mutex;
 
@@ -44,7 +44,7 @@ pub fn show(app: &AppHandle) {
     let was_visible = window.is_visible().unwrap_or(false);
 
     // Only a window coming back from the tray gets its old place. An open
-    // window stays where the user moved it — it is just brought forward.
+    // window stays where the user moved it - it is just brought forward.
     let restored = if was_visible {
         None
     } else {

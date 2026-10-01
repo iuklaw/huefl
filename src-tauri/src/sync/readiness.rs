@@ -1,4 +1,4 @@
-// What light sync needs, checked against the bridge — shown in the Sync tab as
+// What light sync needs, checked against the bridge - shown in the Sync tab as
 // a checklist with a fix per item instead of a bare "Start" that fails.
 //
 // Pure: `facts` are gathered by the caller (sync/mod.rs), so every case is
@@ -85,7 +85,7 @@ pub fn evaluate(facts: &Facts) -> Vec<Check> {
         None => push("bridge_free", Level::Ok, &[]),
     }
 
-    // Music only — ambient sync works without audio, so never blocking.
+    // Music only - ambient sync works without audio, so never blocking.
     match facts.audio {
         Some(Ok(devices)) => push("audio", Level::Ok, &[("device", devices.system.clone().unwrap_or_default())]),
         Some(Err(AudioProblem::NoServer)) => push("audio", Level::Warning, &[("reason", "no_server".into())]),
@@ -93,7 +93,7 @@ pub fn evaluate(facts: &Facts) -> Vec<Check> {
         None => {}
     }
 
-    // Screen only — never blocking either.
+    // Screen only - never blocking either.
     match facts.screen {
         Some(None) => push("screen", Level::Ok, &[]),
         Some(Some(reason)) => push("screen", Level::Warning, &[("reason", reason.into())]),

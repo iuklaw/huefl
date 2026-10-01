@@ -31,7 +31,7 @@ export type SchedulesState = {
   error: string | null;
   /** Bridge clock minus this computer's clock, ms. */
   clockOffset: number;
-  /** The bridge's time zone — the one schedules run in. */
+  /** The bridge's time zone - the one schedules run in. */
   timeZone: string;
   /** The Daylight sensor's id, for sun rules; null if the bridge has none. */
   sensorId: string | null;
@@ -200,7 +200,7 @@ export const schedules = {
   },
 
   /**
-   * Sets where the sun is watched from — here and on the bridge, which runs
+   * Sets where the sun is watched from - here and on the bridge, which runs
    * the sun rules (its Daylight sensor; the Philips Hue app uses the same
    * location).
    */

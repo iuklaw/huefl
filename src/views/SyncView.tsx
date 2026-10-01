@@ -1,6 +1,6 @@
 // The Sync tab. Two states: a readiness checklist until everything light sync
-// needs is in place, then the controls — area, mode, colors, intensity, and a
-// big Start/Stop — with a live preview of what the lights show.
+// needs is in place, then the controls - area, mode, colors, intensity, and a
+// big Start/Stop - with a live preview of what the lights show.
 //
 // The engine runs in Rust; everything here goes through core/sync.ts.
 
@@ -208,7 +208,7 @@ function SyncControls({
         ? "screen"
         : "ambient";
   const screenCheck = overview?.checks.find((c) => c.id === "screen");
-  // Why a mode is off on this machine — shown next to the "Mode" heading.
+  // Why a mode is off on this machine - shown next to the "Mode" heading.
   const unavailableModes = [
     ...(!audioOk ? [{ mode: "music" as const, why: t("sync.mode_unavailable_build") }] : []),
     ...(!screenOk
@@ -335,7 +335,7 @@ function SyncControls({
           {mode === "music" && <MusicSettings disabled={busy} audioCheck={audioCheck} />}
           {mode === "screen" && <ScreenSettings disabled={busy} />}
 
-          {/* Colors — the screen brings its own */}
+          {/* Colors - the screen brings its own */}
           {mode !== "screen" && (
             <Field label={t("sync.colors")}>
               <Select
@@ -490,7 +490,7 @@ function ScreenSettings({ disabled }: { disabled: boolean }) {
 }
 
 /**
- * Wayland: apps can't pick a monitor themselves — the system's sharing
+ * Wayland: apps can't pick a monitor themselves - the system's sharing
  * dialog does. "Change screen…" opens it now; the choice is remembered, and
  * shown here (the dialog tells us its size, not its name).
  */
@@ -745,7 +745,7 @@ function ModeWarnings({ reasons }: { reasons: { mode: SyncMode; why: string }[] 
         <TooltipContent side="bottom" align="start" className="max-w-64 space-y-1 text-xs">
           {reasons.map(({ mode, why }) => (
             <p key={mode}>
-              <span className="font-semibold">{t(`sync.mode.${mode}` as MessageKey)}</span> — {why}
+              <span className="font-semibold">{t(`sync.mode.${mode}` as MessageKey)}</span> - {why}
             </p>
           ))}
         </TooltipContent>

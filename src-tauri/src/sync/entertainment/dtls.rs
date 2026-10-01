@@ -2,7 +2,7 @@
 //
 // The bridge only speaks PSK: identity = the application key, key = the
 // `clientkey` handed out at pairing (32 hex chars → 16 bytes), cipher
-// TLS_PSK_WITH_AES_128_GCM_SHA256. There is no certificate to verify — the
+// TLS_PSK_WITH_AES_128_GCM_SHA256. There is no certificate to verify - the
 // PSK itself authenticates both sides.
 //
 // OpenSSL drives DTLS over any Read + Write, so a connected UDP socket is

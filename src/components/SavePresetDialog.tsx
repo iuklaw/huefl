@@ -24,14 +24,14 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   room: RoomView;
   lights: LightView[];
-  /** This room's saved scenes — to suggest a free default name. */
+  /** This room's saved scenes - to suggest a free default name. */
   scenes: Scene[];
   /** Edit this scene (rename, optionally take the current look) instead of saving a new one. */
   scene?: Scene;
   onSaved?: () => void;
 };
 
-/** Names the current look of a room and saves it as a scene — or edits a saved one. */
+/** Names the current look of a room and saves it as a scene - or edits a saved one. */
 export function SavePresetDialog({ open, onOpenChange, room, lights, scenes, scene, onSaved }: Props) {
   const [name, setName] = useState("");
   const [recapture, setRecapture] = useState(false);

@@ -6,7 +6,7 @@
 // Conversions follow Philips' published "RGB to xy" notes: wide-gamut D65
 // matrices, sRGB gamma, and clamping to the gamut by the nearest point on the
 // triangle. Brightness is separate on Hue (dimming), so every RGB here is at
-// full brightness — the brightest channel is 255.
+// full brightness - the brightest channel is 255.
 
 export type Xy = { x: number; y: number };
 export type Rgb = { r: number; g: number; b: number };
@@ -21,7 +21,7 @@ export const GAMUT_C: Gamut = {
 /** Warm white used for lights that only dim (no color, no temperature). */
 export const WARM_WHITE_MIREK = 370; // ≈ 2700 K
 
-/** The white "Reset" returns a color light to — Hue's default power-on white. */
+/** The white "Reset" returns a color light to - Hue's default power-on white. */
 export const DEFAULT_WHITE_MIREK = 366; // ≈ 2700 K
 
 const D65: Xy = { x: 0.3127, y: 0.329 };
@@ -111,7 +111,7 @@ export function rgbToXy(rgb: Rgb, gamut: Gamut = GAMUT_C): Xy {
   return { x: round4(p.x), y: round4(p.y) };
 }
 
-/** Color temperature (mireds) to RGB — Tanner Helland's blackbody fit. */
+/** Color temperature (mireds) to RGB - Tanner Helland's blackbody fit. */
 export function mirekToRgb(mirek: number): Rgb {
   const t = 1_000_000 / mirek / 100;
   const r = t <= 66 ? 255 : 329.698727446 * (t - 60) ** -0.1332047592;
@@ -144,7 +144,7 @@ export function averageColor(colors: Rgb[], weights?: number[]): Rgb | null {
   return linearToRgb(r / total, g / total, b / total);
 }
 
-/** Color temperature (mireds) for a chromaticity — McCamy's CCT approximation.
+/** Color temperature (mireds) for a chromaticity - McCamy's CCT approximation.
  *  Used to give white-only lights the closest white to a palette color. */
 export function xyToMirek({ x, y }: Xy): number {
   const n = (x - 0.332) / (0.1858 - y);
@@ -157,7 +157,7 @@ export function hexToRgb(hex: string): Rgb {
   return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
 }
 
-/** Plain Euclidean distance in sRGB — enough to tell "the same color again". */
+/** Plain Euclidean distance in sRGB - enough to tell "the same color again". */
 export function colorDistance(a: Rgb, b: Rgb): number {
   return Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
 }
@@ -177,9 +177,9 @@ export function toCss({ r, g, b }: Rgb, alpha = 1): string {
 
 /**
  * The background glow while sync streams: how strongly the lights shine
- * (`level`, 0 off … 1 full — mean of each channel's brightest component) and
+ * (`level`, 0 off … 1 full - mean of each channel's brightest component) and
  * their colors at full brightness, so the hue stays visible when the lights
- * are dim — the strength is carried by `level`, not by darker colors.
+ * are dim - the strength is carried by `level`, not by darker colors.
  */
 export function liveGlow(preview: readonly string[]): { colors: string[]; level: number } {
   if (preview.length === 0) return { colors: [], level: 0 };
@@ -255,8 +255,8 @@ const LIGHTNESS_STEP = 0.08;
 
 /**
  * `count` colors for a room's lights from one color (the "Color of the day"):
- * the color itself in the middle, analogous hues around it — spread ±10° per
- * light, at most ±40° — with lightness alternating slightly so neighbours
+ * the color itself in the middle, analogous hues around it - spread ±10° per
+ * light, at most ±40° - with lightness alternating slightly so neighbours
  * differ while the whole stays one mood. Too grey or too dark a color keeps
  * its hue but gets enough saturation and light for a lamp to show it.
  */

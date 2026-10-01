@@ -1,6 +1,6 @@
 // Light schedules that run on the bridge itself, so they fire with the
 // computer off or the app closed. Pure: builds bridge (API v1) bodies from our
-// model and parses them back — the bridge is the single source of truth.
+// model and parses them back - the bridge is the single source of truth.
 //
 //   fixed time, repeating   schedule  localtime "W124/T07:30:00"
 //   fixed time, once        schedule  localtime "2026-09-30T07:30:00", autodelete

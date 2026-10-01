@@ -3,8 +3,8 @@
 //   Idle ──start──▶ Starting ──connected──▶ Streaming ──stop / error──▶ Stopping ──▶ Idle | Error
 //
 // A session is a stream thread (DTLS, 50 Hz) plus a supervisor task that owns
-// its whole lifetime: however the thread ends — stopped by the user, the app
-// quitting, or the bridge dropping the stream — the supervisor is the single
+// its whole lifetime: however the thread ends - stopped by the user, the app
+// quitting, or the bridge dropping the stream - the supervisor is the single
 // cleanup path (stop the area, restore the lights, publish the final state).
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -409,7 +409,7 @@ fn stream_loop(
                 },
             );
         }
-        // Visualizers: only for a visible window — a hidden one's JS is
+        // Visualizers: only for a visible window - a hidden one's JS is
         // suspended, and events would just queue up for it.
         if visibility_checked.elapsed() >= VISIBILITY_EVERY {
             visibility_checked = Instant::now();

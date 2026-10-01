@@ -1,7 +1,7 @@
 // The expanded part of a light row: a color wheel (hue + saturation) on the
 // left, this light's recent colors on the right, and the chosen color in RGB below.
 //
-// Brightness stays on the row's slider, as in the Hue app — the wheel always
+// Brightness stays on the row's slider, as in the Hue app - the wheel always
 // works at full value. Picked colors are converted to CIE xy and clamped to
 // this light's gamut (older lights cannot show every color).
 //
@@ -41,7 +41,7 @@ export function LightColorPicker({ light }: { light: LightView }) {
 
 function ColorWheel({ light }: { light: LightView }) {
   // The last color picked here, kept after release while the bridge reports
-  // (roughly) the same xy — converting back from xy would make the pointer jump.
+  // (roughly) the same xy - converting back from xy would make the pointer jump.
   const [picked, setPicked] = useState<{ hsva: HsvaColor; xy: Xy } | null>(null);
   const dragging = useRef(false);
   const latest = useRef<Rgb | null>(null);
@@ -208,7 +208,7 @@ function ResetButton({ light }: { light: LightView }) {
       const mirek = Math.min(max, Math.max(min, DEFAULT_WHITE_MIREK));
       void actions.setLight({ id: light.id, mirek, on: true });
     } else {
-      // Rare: a color light without color temperature — send white as xy.
+      // Rare: a color light without color temperature - send white as xy.
       const xy = rgbToXy(mirekToRgb(DEFAULT_WHITE_MIREK), light.gamut ?? undefined);
       void actions.setLight({ id: light.id, xy, on: true });
     }

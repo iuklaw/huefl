@@ -1,8 +1,8 @@
 // Captures audio for music sync on its own thread and keeps the latest
 // analysis in shared `Features`.
 //
-// "System audio" records the default output's monitor — by the exact source
-// name the server reports (see devices::capture_device) — and "Microphone"
+// "System audio" records the default output's monitor - by the exact source
+// name the server reports (see devices::capture_device) - and "Microphone"
 // the default input. Works on PulseAudio and PipeWire
 // (pipewire-pulse). Kept working through the things that happen mid-sync:
 //   - the user switches output (speakers → headset): the monitor name is
@@ -35,7 +35,7 @@ impl AudioInput {
     }
 }
 
-/// What happened to the input mid-sync — the caller logs it.
+/// What happened to the input mid-sync - the caller logs it.
 #[derive(Clone, Debug, PartialEq)]
 pub enum AudioEvent {
     /// Recording from this source (its PulseAudio name).
