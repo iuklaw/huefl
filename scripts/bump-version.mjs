@@ -1,5 +1,5 @@
-// Sets the app's version everywhere it lives: package.json, Cargo.toml and
-// tauri.conf.json (the one the updater compares). Usage:
+// Sets the app's version everywhere it lives: package.json (+ lock),
+// Cargo.toml and tauri.conf.json (the one the updater compares). Usage:
 //   node scripts/bump-version.mjs 0.2.0
 // Then commit, tag v0.2.0 and push the tag - the Release workflow builds it.
 
@@ -17,10 +17,16 @@ const json = (path, edit) => {
   writeFileSync(path, JSON.stringify(data, null, 2) + "\n");
 };
 json("package.json", (p) => (p.version = version));
+json("package-lock.json", (l) => {
+  l.version = version;
+  if (l.packages?.[""]) l.packages[""].version = version;
+});
 json("src-tauri/tauri.conf.json", (c) => (c.version = version));
 
 const cargo = readFileSync("src-tauri/Cargo.toml", "utf8");
 // Only the [package] version (the first `version =` line).
 writeFileSync("src-tauri/Cargo.toml", cargo.replace(/^version = ".*"$/m, `version = "${version}"`));
 
-console.log(`Version set to ${version}. Next: git commit -am "release: v${version}" && git tag v${version} && git push --follow-tags`);
+console.log(
+  `Version set to ${version}. Next:\n  git commit -am "release: v${version}"\n  git tag -a v${version} -m "v${version}"\n  git push --follow-tags`,
+);
