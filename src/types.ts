@@ -68,6 +68,10 @@ export type ThemePreference = "system" | "dark" | "light";
 export type Preferences = {
   closeBehavior: CloseBehavior;
   theme: ThemePreference;
+  /** Look for new versions on GitHub every few hours. */
+  checkForUpdates: boolean;
+  /** "Later" on this version: no badge until a newer one. */
+  dismissedUpdate: string | null;
 };
 
 /** One light's state inside a saved scene. Plugs only have `on`. */

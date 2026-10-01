@@ -1,0 +1,58 @@
+# Builds a release when a version tag is pushed (git tag v0.2.0 && git push --tags):
+# AppImage + .deb, signed for the in-app updater, plus latest.json — as a
+# draft GitHub release to check and publish by hand.
+#
+# Ubuntu 22.04 on purpose: its glibc (2.35) is the oldest the app supports,
+# so the build runs on 22.04 and anything newer (incl. SteamOS).
+#
+# Repository secrets: TAURI_SIGNING_PRIVATE_KEY (the content of
+# ~/.tauri/huefl.key) and TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl wget file pkg-config libssl-dev \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
+            libpulse-dev libpipewire-0.3-dev libclang-dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: HueFL ${{ github.ref_name }}
+          releaseBody: See the changes below.
+          releaseDraft: true
+          includeUpdaterJson: true
+          # Signed .sig files next to the bundles, for the updater.
+          args: --config '{"bundle":{"createUpdaterArtifacts":true}}'

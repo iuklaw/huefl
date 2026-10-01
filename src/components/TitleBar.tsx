@@ -2,8 +2,12 @@
 // tauri.conf.json). The bar itself is the drag handle; buttons are not.
 
 import type { ComponentProps } from "react";
-import { Lightbulb, Minus, Settings, X } from "lucide-react";
+import { ArrowDownToLine, Lightbulb, Minus, Settings, X } from "lucide-react";
+import { openUpdateDialog } from "@/components/UpdateDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { actions } from "@/core/app";
+import { useAppState } from "@/core/useAppState";
+import { badgeVersion, useUpdates } from "@/core/updates";
 import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +26,7 @@ export function TitleBar({ onOptions, onClose }: Props) {
       <span data-tauri-drag-region className="ml-2 text-xs font-semibold tracking-wide">
         {t("app.product_name")}
       </span>
+      <UpdateBadge />
 
       <div className="ml-auto flex h-full">
         <TitleButton label={t("titlebar.options")} onClick={onOptions}>
@@ -39,6 +44,35 @@ export function TitleBar({ onOptions, onClose }: Props) {
         </TitleButton>
       </div>
     </header>
+  );
+}
+
+/** A newer version is out: a small pill by the name; click to update. */
+function UpdateBadge() {
+  const update = useUpdates();
+  const { preferences } = useAppState();
+  const version = badgeVersion(update, preferences.dismissedUpdate);
+  if (!version) return null;
+  const label = t("update.badge_tooltip", { version });
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={openUpdateDialog}
+            aria-label={label}
+            className="ml-2 flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary outline-none hover:bg-primary/25 focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowDownToLine className="size-3" aria-hidden />
+            {version}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="text-xs">
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

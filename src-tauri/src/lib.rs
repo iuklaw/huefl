@@ -7,6 +7,7 @@ mod paths;
 mod report;
 mod sync;
 mod tray;
+mod updates;
 mod window;
 
 use tauri::{AppHandle, Emitter, WindowEvent};
@@ -23,8 +24,10 @@ pub fn run() {
         .manage(hue::HueState::default())
         .manage(window::WindowPlacement::default())
         .manage(sync::manager::SyncManager::default())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
             logs::init(app.handle());
+            updates::init(app.handle());
             if !migrated.is_empty() {
                 logs::write(
                     app.handle(),
@@ -76,6 +79,9 @@ pub fn run() {
             logs::log_read,
             logs::log_clear,
             logs::log_path,
+            updates::update_check,
+            updates::update_install,
+            updates::update_restart,
             report::bug_report_system_info,
             report::bug_report_logs,
             report::bug_report_send,

@@ -19,6 +19,8 @@ export type BridgePairing = {
 export type Settings = BridgePairing & {
   closeBehavior: CloseBehavior;
   theme: ThemePreference;
+  checkForUpdates: boolean;
+  dismissedUpdate: string | null;
   /** Color history and saved presets. */
   library: Library;
   syncPrefs: SyncPrefs;
@@ -38,6 +40,8 @@ export const DEFAULT_SETTINGS: Settings = {
   ...NO_BRIDGE,
   closeBehavior: "ask",
   theme: "system",
+  checkForUpdates: true,
+  dismissedUpdate: null,
   library: { colorHistory: {}, scenes: [] },
   syncPrefs: {
     areaId: null,

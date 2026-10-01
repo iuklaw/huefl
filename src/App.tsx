@@ -16,6 +16,7 @@ import { PairingView } from "@/views/PairingView";
 import { SchedulesView } from "@/views/SchedulesView";
 import { SyncView } from "@/views/SyncView";
 import { ScheduleEditor } from "@/components/schedule/ScheduleEditor";
+import { UpdateDialog } from "@/components/UpdateDialog";
 import { MainTabs, type MainTab } from "@/components/MainTabs";
 
 type View = { name: "home" } | { name: "options"; tab: OptionsTab } | { name: "schedules" };
@@ -103,6 +104,7 @@ export function App() {
 
       {/* One schedule editor, opened from room cards and the Schedules screen. */}
       <ScheduleEditor />
+      <UpdateDialog />
 
       <CloseDialog
         open={closeOpen}

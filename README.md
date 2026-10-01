@@ -246,3 +246,42 @@ Aplikacja wysyła `POST` z JSON-em (`BugReport` w `src/core/report.ts`, pole
 `schema: 1`) i nagłówkiem `Authorization: Bearer <token>`, jeśli token podano.
 Serwer odpowiada kodem 2xx i `{"id": "…"}` — identyfikator pokazuje się
 użytkownikowi. Limit: 5 MB na zgłoszenie, 15 s na odpowiedź.
+
+## Wydania i aktualizacje
+
+Aplikacja sama sprawdza nowe wersje na GitHub Releases (po starcie i co 6 h;
+wylaczalne w Opcje → About). Przy nowej wersji obok nazwy w pasku tytulu
+pojawia sie numer wersji; klik otwiera okno z notatkami, pobieraniem
+(z postepem) i restartem. AppImage podmienia sie w miejscu, `.deb` instaluje
+sie przez `pkexec` (systemowe okno z haslem). Kazda aktualizacja jest
+podpisana — aplikacja odrzuca plik bez podpisu kluczem wydan
+(`tauri-plugin-updater`, `src-tauri/src/updates.rs`).
+
+**Jednorazowo:**
+
+1. Klucz wydan (prywatny zostaje u Ciebie, nigdy w repo):
+   ```bash
+   npm run tauri signer generate -- -w ~/.tauri/huefl.key
+   ```
+2. W `src-tauri/tauri.conf.json` → `plugins.updater`:
+   - `pubkey`: zawartosc `~/.tauri/huefl.key.pub`,
+   - `endpoints`: `["https://github.com/<owner>/<repo>/releases/latest/download/latest.json"]`.
+   Dopoki te pola sa puste, sprawdzanie jest wylaczone ("Updates aren't set up").
+3. Repo na GitHubie → Settings → Secrets → Actions: `TAURI_SIGNING_PRIVATE_KEY`
+   (zawartosc `~/.tauri/huefl.key`) i `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+
+**Kazde wydanie:**
+
+```bash
+node scripts/bump-version.mjs 0.2.0
+git commit -am "release: v0.2.0" && git tag v0.2.0 && git push --follow-tags
+```
+
+Workflow `.github/workflows/release.yml` buduje na Ubuntu 22.04 AppImage i
+`.deb` z podpisami oraz `latest.json` i tworzy **szkic** wydania — sprawdz go i
+opublikuj (opis wydania trafia do okna aktualizacji jako notatki).
+
+Lokalny build z podpisami (np. do testu aktualizacji):
+`TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/huefl.key)" npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":true}}'`.
+Zmienna `HUEFL_UPDATE_ENDPOINT` podmienia adres `latest.json` (podpis nadal
+jest wymagany).

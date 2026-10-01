@@ -36,7 +36,7 @@ import {
 import { captureScene, paletteCommands, pushHistory, sceneCommands } from "@/lib/presets";
 import { CommandQueue } from "@/queue";
 import { DEFAULT_SETTINGS, loadSettings, NO_BRIDGE, saveSettings, type Settings } from "@/store";
-import type { Actions, AppState, Library, LightCommand, Result } from "@/types";
+import type { Actions, AppState, Library, LightCommand, Preferences, Result } from "@/types";
 
 // --- State -------------------------------------------------------------------
 
@@ -52,13 +52,22 @@ const RETRY_MAX_MS = 60_000;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 let retryDelay = RETRY_MIN_MS;
 
+function preferencesOf(s: Settings): Preferences {
+  return {
+    closeBehavior: s.closeBehavior,
+    theme: s.theme,
+    checkForUpdates: s.checkForUpdates,
+    dismissedUpdate: s.dismissedUpdate,
+  };
+}
+
 let state: AppState = {
   status: "connecting",
   error: null,
   rooms: [],
   lights: [],
   bridge: null,
-  preferences: { closeBehavior: DEFAULT_SETTINGS.closeBehavior, theme: DEFAULT_SETTINGS.theme },
+  preferences: preferencesOf(DEFAULT_SETTINGS),
   syncing: { rooms: [], lights: [] },
   library: DEFAULT_SETTINGS.library,
   syncPrefs: DEFAULT_SETTINGS.syncPrefs,
@@ -653,12 +662,12 @@ export async function start(): Promise<void> {
       locale,
       paired: Boolean(settings.applicationKey),
       bridgeIp: settings.bridgeIp,
-      preferences: { closeBehavior: settings.closeBehavior, theme: settings.theme },
+      preferences: preferencesOf(settings),
     });
     patchState({
       status: settings.applicationKey ? "connecting" : "unconfigured",
       bridge: basicBridgeInfo(),
-      preferences: { closeBehavior: settings.closeBehavior, theme: settings.theme },
+      preferences: preferencesOf(settings),
       library: settings.library,
       syncPrefs: settings.syncPrefs,
       scheduleLocation: settings.scheduleLocation,
