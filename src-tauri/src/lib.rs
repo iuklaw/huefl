@@ -1,4 +1,5 @@
 mod config;
+mod daily;
 mod hue;
 mod i18n;
 mod logs;
@@ -57,6 +58,7 @@ pub fn run() {
             hue::avahi_browse,
             hue::discover_cloud,
             hue::device_name,
+            daily::color_of_the_day,
             tray::set_tray_state,
             window::window_hide,
             window::window_show,

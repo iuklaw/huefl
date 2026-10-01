@@ -26,6 +26,11 @@ natywnie).
 Do discovery przez mDNS przydaje sie `avahi-daemon` (jest domyslnie na
 wiekszosci desktopow). Bez niego aplikacja spada na `discovery.meethue.com`.
 
+"Color of the day" w presetach pobiera raz dziennie kolor z
+`colors.zoodinkers.com` (wysylana jest tylko data). Odpowiedz jest trzymana w
+`~/.local/state/huefl/color-of-the-day.json`, wiec po pierwszym pobraniu dziala
+offline do konca dnia; bez sieci i bez kopii opcja jest wylaczona.
+
 ## Uruchomienie
 
 ```bash

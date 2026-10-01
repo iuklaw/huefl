@@ -216,3 +216,67 @@ export function accentStyles(color: Rgb | null): { text: string; border: string 
 function round4(v: number): number {
   return Math.round(v * 10_000) / 10_000;
 }
+
+// --- Palette from one color ----------------------------------------------------
+
+/** HSL, hue in degrees, saturation and lightness 0–1. */
+function rgbToHsl({ r, g, b }: Rgb): { h: number; s: number; l: number } {
+  const [rn, gn, bn] = [r / 255, g / 255, b / 255];
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return { h: 0, s: 0, l };
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h =
+    max === rn ? 60 * (((gn - bn) / d) % 6) : max === gn ? 60 * ((bn - rn) / d + 2) : 60 * ((rn - gn) / d + 4);
+  return { h: (h + 360) % 360, s, l };
+}
+
+function hslToRgb({ h, s, l }: { h: number; s: number; l: number }): Rgb {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] =
+    h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  const to = (v: number) => Math.round(Math.min(1, Math.max(0, v + m)) * 255);
+  return { r: to(r), g: to(g), b: to(b) };
+}
+
+/** Lights show greys and very dark colors poorly: keep at least this much color. */
+const MIN_SATURATION = 0.35;
+const MIN_LIGHTNESS = 0.3;
+const MAX_LIGHTNESS = 0.7;
+/** Hue spread per light, and the most it may stray from the color. */
+const HUE_STEP = 10;
+const MAX_HUE_SPREAD = 40;
+/** Neighbouring lights alternate a little lighter / darker. */
+const LIGHTNESS_STEP = 0.08;
+
+/**
+ * `count` colors for a room's lights from one color (the "Color of the day"):
+ * the color itself in the middle, analogous hues around it — spread ±10° per
+ * light, at most ±40° — with lightness alternating slightly so neighbours
+ * differ while the whole stays one mood. Too grey or too dark a color keeps
+ * its hue but gets enough saturation and light for a lamp to show it.
+ */
+export function paletteFromColor(hex: string, count: number): string[] {
+  const n = Math.max(1, Math.floor(count));
+  const base = rgbToHsl(hexToRgb(hex));
+  const s = Math.max(base.s, MIN_SATURATION);
+  const l = Math.min(MAX_LIGHTNESS, Math.max(MIN_LIGHTNESS, base.l));
+  const spread = Math.min(MAX_HUE_SPREAD, HUE_STEP * n);
+  const middle = Math.floor((n - 1) / 2);
+  return Array.from({ length: n }, (_, i) => {
+    const offset = n === 1 ? 0 : -spread + (2 * spread * i) / (n - 1);
+    // The middle light gets the color of the day itself (adjusted for lamps).
+    const h = i === middle && n % 2 === 1 ? base.h : (base.h + offset + 360) % 360;
+    const shade = i === middle ? 0 : (i % 2 === 0 ? 1 : -1) * LIGHTNESS_STEP;
+    return toHex(hslToRgb({ h, s, l: Math.min(MAX_LIGHTNESS, Math.max(MIN_LIGHTNESS, l + shade)) }));
+  });
+}
+
+/** Hue in degrees of a hex color (for tests and callers that compare hues). */
+export function hueOf(hex: string): number {
+  return rgbToHsl(hexToRgb(hex)).h;
+}

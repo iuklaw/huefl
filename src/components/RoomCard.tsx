@@ -17,8 +17,10 @@ import { t, tPlural, type MessageKey } from "@/i18n";
 import { accentStyles, toCss } from "@/lib/color";
 import { POPULAR_PALETTES } from "@/lib/palettes";
 import { findActivePreset } from "@/lib/presets";
+import { useDailyColor } from "@/core/daily";
+import { paletteFromColor } from "@/lib/color";
 import { cn } from "@/lib/utils";
-import type { LightView, RoomView, Scene } from "@/types";
+import type { LightView, Palette, RoomView, Scene } from "@/types";
 
 type Props = {
   room: RoomView;
@@ -55,10 +57,20 @@ export function RoomCard({
 }: Props) {
   const [saving, setSaving] = useState(false);
   const tint = room.on && room.color ? room.color : null;
+  // The color of the day, spread over the room's color lights.
+  const daily = useDailyColor();
+  const colorLights = lights.filter((l) => l.capabilities.color).length;
+  const dailyPalette = useMemo<Palette | null>(
+    () =>
+      daily.status === "ready"
+        ? { id: "daily", brightness: 80, colors: paletteFromColor(daily.hex, Math.max(1, colorLights)) }
+        : null,
+    [daily, colorLights],
+  );
   // Derived from what the lights show — see findActivePreset in lib/presets.ts.
   const active = useMemo(
-    () => findActivePreset(lights, scenes, POPULAR_PALETTES),
-    [lights, scenes],
+    () => findActivePreset(lights, scenes, dailyPalette ? [...POPULAR_PALETTES, dailyPalette] : POPULAR_PALETTES),
+    [lights, scenes, dailyPalette],
   );
   const activeName = !active
     ? null
@@ -190,7 +202,14 @@ export function RoomCard({
             {t("presets.title")}
           </SectionTrigger>
           <CollapsibleContent className="overflow-hidden data-open:animate-collapsible-down data-closed:animate-collapsible-up">
-            <RoomPresets room={room} lights={lights} scenes={scenes} active={active} accent={accent} />
+            <RoomPresets
+              room={room}
+              lights={lights}
+              scenes={scenes}
+              active={active}
+              accent={accent}
+              daily={{ state: daily, palette: dailyPalette }}
+            />
           </CollapsibleContent>
         </Collapsible>
 
