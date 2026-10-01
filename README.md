@@ -11,6 +11,9 @@
 
 Control your Philips Hue lights and sync them with your music and your screen. HueFL talks to the Hue Bridge directly on your local network.
 
+> [!NOTE]
+> HueFL is an **unofficial**, independent app. It is not made, endorsed or supported by Signify or Philips Hue.
+
 Built with [Tauri 2](https://tauri.app) (Rust + the system webview) and React.
 
 <table>
