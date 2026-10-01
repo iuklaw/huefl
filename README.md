@@ -1,6 +1,6 @@
 # HueFL - Philips Hue for Linux
 
-Control your Philips Hue lights and sync them with your music and your screen. HueFL talks to the Hue Bridge directly on your local network - no Philips account, no cloud.
+Control your Philips Hue lights and sync them with your music and your screen. HueFL talks to the Hue Bridge directly on your local network.
 
 Built with [Tauri 2](https://tauri.app) (Rust + the system webview) and React.
 
