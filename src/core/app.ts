@@ -59,6 +59,7 @@ function preferencesOf(s: Settings): Preferences {
     theme: s.theme,
     checkForUpdates: s.checkForUpdates,
     dismissedUpdate: s.dismissedUpdate,
+    startAtLogin: s.startAtLogin,
   };
 }
 
@@ -255,6 +256,16 @@ export const actions: Actions = {
     settings = { ...settings, ...patch };
     patchState({ preferences: { ...state.preferences, ...patch } });
     await saveSettings(settings);
+  },
+
+  setStartAtLogin: async (enabled) => {
+    try {
+      const startAtLogin = await invoke<boolean>("autostart_set", { enabled });
+      await actions.setPreferences({ startAtLogin });
+      return { ok: startAtLogin === enabled };
+    } catch (error) {
+      return { ok: false, error: describe(error) };
+    }
   },
 
   setScheduleLocation: async (location) => {
@@ -665,6 +676,10 @@ void listen<{ id: string; on: boolean }>("tray-room-changed", ({ payload }) => {
 export async function start(): Promise<void> {
   try {
     settings = await loadSettings();
+    // The autostart entry is the truth where it can be read (not in a
+    // Flatpak): it may have been added or removed by hand.
+    const autostart = await invoke<boolean | null>("autostart_enabled").catch(() => null);
+    if (autostart !== null) settings = { ...settings, startAtLogin: autostart };
     log.info("app", "app.start", `HueFL ${await getVersion()} started`, {
       userAgent: navigator.userAgent,
       locale,

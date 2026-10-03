@@ -72,6 +72,8 @@ export type Preferences = {
   checkForUpdates: boolean;
   /** "Later" on this version: no badge until a newer one. */
   dismissedUpdate: string | null;
+  /** HueFL opens when the user logs in. */
+  startAtLogin: boolean;
 };
 
 /** One light's state inside a saved scene. Plugs only have `on`. */
@@ -158,6 +160,8 @@ export type Actions = {
   setSyncPrefs(patch: Partial<SyncPrefs>): Promise<void>;
   setScheduleLocation(location: ScheduleLocation): Promise<void>;
   setPreferences(patch: Partial<Preferences>): Promise<void>;
+  /** Asks the system to start HueFL at login (or not); stores what it agreed to. */
+  setStartAtLogin(enabled: boolean): Promise<Result>;
   minimize(): Promise<void>;
   hideToTray(): Promise<void>;
   quit(): Promise<void>;

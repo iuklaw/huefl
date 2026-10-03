@@ -1,3 +1,4 @@
+mod autostart;
 mod config;
 mod daily;
 mod hue;
@@ -60,6 +61,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             quit,
+            autostart::autostart_enabled,
+            autostart::autostart_set,
             config::load_config,
             config::save_config,
             hue::hue_request,

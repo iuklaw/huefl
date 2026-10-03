@@ -144,25 +144,14 @@ Use the clock button on a room card for a quick timer, or open **Schedules** for
 
 <img src="docs/screenshots/options-sync-light.png" width="260" align="right" alt="Options, Sync tab: restore lights after sync, photosensitivity safe mode">
 
-Settings are changed in the app (gear icon -> **Options**): closing to the tray, theme, bridge, lights, sync, logs and updates. Files live in the usual places:
+Settings are changed in the app (gear icon -> **Options**): start at login, closing to the tray, theme, bridge, lights, sync, logs and updates. Files live in the usual places:
 
 | What | Where |
 |---|---|
 | Settings and the bridge key (mode 600) | `~/.config/huefl/config.json` |
 | Log | `~/.local/state/huefl/huefl.log` |
 
-To start HueFL when you log in, create `~/.config/autostart/huefl.desktop`:
-
-```ini
-[Desktop Entry]
-Type=Application
-Name=HueFL
-Exec=huefl
-Icon=huefl
-Terminal=false
-```
-
-For the AppImage, set `Exec` to the full path of the file.
+To start HueFL when you log in, turn on **Options -> General -> Start at login**. An AppImage is started from where it was when you turned this on - after moving the file, turn the option off and on again.
 
 <br clear="right">
 

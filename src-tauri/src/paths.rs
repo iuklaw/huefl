@@ -37,6 +37,11 @@ pub fn config_dir() -> PathBuf {
     config_base().join(APP_DIR)
 }
 
+/// The login autostart entry (XDG Autostart), outside a Flatpak.
+pub fn autostart_file() -> PathBuf {
+    config_base().join("autostart").join(format!("{APP_DIR}.desktop"))
+}
+
 pub fn state_dir() -> PathBuf {
     state_base().join(APP_DIR)
 }

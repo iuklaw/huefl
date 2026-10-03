@@ -118,6 +118,10 @@
   "options.tab.logs": "Logs",
   "options.tab.about": "About",
 
+  "general.autostart_title": "Startup",
+  "general.autostart": "Start at login",
+  "general.autostart_hint": "Opens HueFL when you log in to your computer.",
+  "general.autostart_failed": "Couldn't change it: {error}",
   "general.close_title": "When closing the window",
   "general.close.ask": "Ask every time",
   "general.close.tray": "Minimize to tray",

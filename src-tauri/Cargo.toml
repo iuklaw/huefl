@@ -29,7 +29,9 @@ libpulse-binding = { version = "2.30", optional = true }
 libpulse-simple-binding = { version = "2.29", optional = true }
 x11rb = { version = "0.14", features = ["shm", "randr"], optional = true }
 libc = { version = "0.2", optional = true }
-ashpd = { version = "0.13", default-features = false, features = ["tokio", "screencast"], optional = true }
+# Desktop portals (pure Rust, over D-Bus): screen sharing, and starting at
+# login from inside a Flatpak.
+ashpd = { version = "0.13", default-features = false, features = ["tokio", "screencast", "background"] }
 # 0.6 + libspa 0.6: the newest that build against PipeWire 0.3.48 headers
 # (Ubuntu 22.04); later libspa needs fields added in 0.3.6x. At run time any
 # newer PipeWire works (the protocol is backwards compatible).
@@ -50,7 +52,7 @@ sync-audio = ["dep:libpulse-binding", "dep:libpulse-simple-binding"]
 sync-screen = ["dep:x11rb", "dep:libc"]
 # Screen sync on Wayland: the xdg-desktop-portal ScreenCast + a PipeWire
 # stream. Needs libpipewire-0.3-dev and libclang-dev to build.
-sync-screen-wayland = ["sync-screen", "dep:ashpd", "dep:pipewire", "dep:libspa", "dep:libspa-sys"]
+sync-screen-wayland = ["sync-screen", "dep:pipewire", "dep:libspa", "dep:libspa-sys"]
 # The app updates itself from GitHub Releases (AppImage, .deb, .rpm). Builds
 # for a package manager leave it out: updates are the manager's job there.
 self-update = ["dep:tauri-plugin-updater"]
