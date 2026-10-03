@@ -288,6 +288,7 @@
   "sync.screen_cancelled": "Screen sharing was cancelled - press Start to choose a screen.",
   "sync.screen_hint": "Tip: an area set up for a TV or desk monitor places the lights around the screen.",
   "sync.screen_waiting": "Waiting for the screen…",
+  "sync.reconnecting": "Reconnecting to the bridge…",
   "sync.coming_soon": "Coming soon",
   "sync.colors": "Colors",
   "sync.intensity": "Intensity",

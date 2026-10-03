@@ -40,6 +40,9 @@ pub enum ScreenEvent {
     Opened(String),
     Lost(String),
     Restored,
+    /// Capture runs but can never give a picture (frames we can't read):
+    /// the session ends with this message rather than staying dark.
+    Failed(String),
     /// A detail worth a log line (format negotiated, first frame, …).
     Detail { code: &'static str, message: String, warn: bool },
 }

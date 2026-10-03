@@ -39,6 +39,10 @@ use super::zones::{grid_from_frame, Grid, PixelOrder};
 
 /// Frames a second we look at; the rest are dropped (lights update ~25 Hz).
 const MAX_FPS: u32 = 25;
+/// How long frames may stay unreadable after asking for shared memory.
+const UNREADABLE_FOR: Duration = Duration::from_secs(3);
+/// Ends the messages for capture that can't work - only a report helps.
+const REPORT: &str = "Please report it with the log (Options → About → Report a bug).";
 
 /// Why opening failed: the user said no, or something else.
 #[derive(Debug)]
@@ -127,16 +131,47 @@ async fn choose(
     proxy: &Screencast,
     remembered: bool,
 ) -> Result<(Session<Screencast>, ashpd::desktop::screencast::Stream), OpenError> {
-    let session = proxy.create_session(Default::default()).await?;
     let token = if remembered { load_saved().map(|s| s.token) } else { None };
+    match choose_once(proxy, token.as_deref()).await {
+        // A token the portal won't take (malformed, from another portal
+        // version) fails instead of falling back to the dialog: forget it
+        // and ask, once.
+        Err(OpenError::Failed(_)) if token.is_some() => {
+            forget();
+            choose_once(proxy, None).await
+        }
+        result => result,
+    }
+}
+
+/// One session through SelectSources and Start; closed again if that fails.
+async fn choose_once(
+    proxy: &Screencast,
+    token: Option<&str>,
+) -> Result<(Session<Screencast>, ashpd::desktop::screencast::Stream), OpenError> {
+    let session = proxy.create_session(Default::default()).await?;
+    match select_and_start(proxy, &session, token).await {
+        Ok(stream) => Ok((session, stream)),
+        Err(e) => {
+            let _ = session.close().await;
+            Err(e)
+        }
+    }
+}
+
+async fn select_and_start(
+    proxy: &Screencast,
+    session: &Session<Screencast>,
+    token: Option<&str>,
+) -> Result<ashpd::desktop::screencast::Stream, OpenError> {
     let options = SelectSourcesOptions::default()
         .set_cursor_mode(CursorMode::Hidden)
         .set_sources(ashpd::enumflags2::BitFlags::from(SourceType::Monitor))
         .set_multiple(false)
         .set_persist_mode(PersistMode::ExplicitlyRevoked)
-        .set_restore_token(token.as_deref());
-    proxy.select_sources(&session, options).await?.response()?;
-    let streams = proxy.start(&session, None, Default::default()).await?.response()?;
+        .set_restore_token(token);
+    proxy.select_sources(session, options).await?.response()?;
+    let streams = proxy.start(session, None, Default::default()).await?.response()?;
     let Some(stream) = streams.streams().first().cloned() else {
         return Err(OpenError::Failed("The portal shared no screen.".into()));
     };
@@ -152,7 +187,7 @@ async fn choose(
         // A portal without restore tokens asks every time: nothing to keep.
         None => forget(),
     }
-    Ok((session, stream))
+    Ok(stream)
 }
 
 /// "Change screen…": the portal's dialog now, remembering the answer for
@@ -233,9 +268,13 @@ struct StreamState {
     /// Negotiated: width, height, byte order.
     format: Option<(usize, usize, PixelOrder)>,
     last_frame: Option<Instant>,
-    /// One log line each, not one per frame.
+    /// When frames we can't read (GPU memory) made us ask for shared memory
+    /// instead; reset by the first readable frame.
+    unreadable_since: Option<Instant>,
+    /// Said once that capture can't work; the session is ending.
+    failed: bool,
+    /// One log line, not one per frame.
     logged_first_frame: bool,
-    logged_unreadable: bool,
 }
 
 impl Default for StreamState {
@@ -247,8 +286,17 @@ impl Default for StreamState {
             on_event: Rc::new(Box::new(|_| {})),
             format: None,
             last_frame: None,
+            unreadable_since: None,
+            failed: false,
             logged_first_frame: false,
-            logged_unreadable: false,
+        }
+    }
+}
+
+impl StreamState {
+    fn fail(&mut self, message: String) {
+        if !std::mem::replace(&mut self.failed, true) {
+            (self.on_event)(ScreenEvent::Failed(message));
         }
     }
 }
@@ -280,6 +328,7 @@ fn run(
     )
     .map_err(|e| format!("PipeWire: {e}"))?;
 
+    let shared_memory = buffers_param().map_err(|e| format!("PipeWire buffers: {e}"))?;
     let on_event = Rc::new(on_event);
     let weak = mainloop.downgrade();
     let _listener = stream
@@ -287,10 +336,7 @@ fn run(
             grid: grid.clone(),
             lost: lost.clone(),
             on_event: on_event.clone(),
-            format: None,
-            last_frame: None,
-            logged_first_frame: false,
-            logged_unreadable: false,
+            ..Default::default()
         })
         .state_changed(move |_, new| {
             // The compositor ended the share (stopped from its panel, screen
@@ -313,15 +359,11 @@ fn run(
                 }
                 Err(why) => {
                     state.format = None;
-                    (state.on_event)(ScreenEvent::Detail {
-                        code: "sync.screen_format_unknown",
-                        message: format!("Can't read the screen's video format: {why}"),
-                        warn: true,
-                    });
+                    state.fail(format!("Can't read the screen's video format ({why}). {REPORT}"));
                 }
             }
         })
-        .process(|stream, state| {
+        .process(move |stream, state| {
             let Some(mut buffer) = stream.dequeue_buffer() else { return };
             let Some((width, height, order)) = state.format else { return };
             // Enough for the lights; the rest is wasted work.
@@ -337,16 +379,30 @@ fn run(
             };
             let stride = if stride > 0 { stride as usize } else { width * 4 };
             let Some(bytes) = data.data() else {
-                // Not mapped: a GPU buffer (DMA-BUF) we don't read.
-                if !std::mem::replace(&mut state.logged_unreadable, true) {
-                    (state.on_event)(ScreenEvent::Detail {
-                        code: "sync.screen_unreadable",
-                        message: format!("Screen frames arrive as {kind:?}, which can't be read"),
-                        warn: true,
-                    });
+                // Not mapped: a GPU buffer (DMA-BUF) we don't read. Ask for
+                // shared memory instead; if frames still can't be read after
+                // a while, say so rather than keep the lights dark.
+                match state.unreadable_since {
+                    None => {
+                        state.unreadable_since = Some(Instant::now());
+                        (state.on_event)(ScreenEvent::Detail {
+                            code: "sync.screen_unreadable",
+                            message: format!("Screen frames arrive as {kind:?}, which can't be read; asking for shared memory"),
+                            warn: true,
+                        });
+                        let mut params = [shared_memory.as_ptr() as *const spa_sys::spa_pod];
+                        if let Err(e) = stream.update_params(&mut params) {
+                            state.fail(format!("Screen frames arrive as {kind:?}, which can't be read ({e}). {REPORT}"));
+                        }
+                    }
+                    Some(since) if since.elapsed() > UNREADABLE_FOR => {
+                        state.fail(format!("Your desktop sends the screen as {kind:?}, which HueFL can't read. {REPORT}"));
+                    }
+                    Some(_) => {}
                 }
                 return;
             };
+            state.unreadable_since = None;
             if !std::mem::replace(&mut state.logged_first_frame, true) {
                 (state.on_event)(ScreenEvent::Detail {
                     code: "sync.screen_first_frame",
@@ -450,6 +506,23 @@ fn enum_format() -> Result<Vec<u8>, String> {
                 ))),
             ),
         ],
+    });
+    PodSerializer::serialize(Cursor::new(Vec::new()), &object)
+        .map(|(cursor, _)| cursor.into_inner())
+        .map_err(|e| format!("{e:?}"))
+}
+
+/// Buffers in plain or fd-backed shared memory - what `data()` can map -
+/// rather than GPU memory (DMA-BUF), which some compositors pick by default.
+fn buffers_param() -> Result<Vec<u8>, String> {
+    let object = Value::Object(Object {
+        type_: spa_sys::SPA_TYPE_OBJECT_ParamBuffers,
+        id: spa_sys::SPA_PARAM_Buffers,
+        properties: vec![Property {
+            key: spa_sys::SPA_PARAM_BUFFERS_dataType,
+            flags: PropertyFlags::empty(),
+            value: Value::Int((1 << spa_sys::SPA_DATA_MemPtr) | (1 << spa_sys::SPA_DATA_MemFd)),
+        }],
     });
     PodSerializer::serialize(Cursor::new(Vec::new()), &object)
         .map(|(cursor, _)| cursor.into_inner())

@@ -93,21 +93,35 @@ impl BridgeAccess {
     }
 
     /// Current on/brightness/color of lights, as PUT bodies that restore it.
-    pub async fn light_snapshot(&self, state: &HueState, light_ids: &[String]) -> Result<Vec<(String, Value)>, String> {
+    /// A light that can't be read is left out (and its error returned), so
+    /// one failure doesn't cost the others their restore.
+    pub async fn light_snapshot(&self, state: &HueState, light_ids: &[String]) -> (Vec<(String, Value)>, Vec<String>) {
         let mut saved = Vec::new();
+        let mut errors = Vec::new();
         for id in light_ids {
-            let data = self.request(state, "GET", &format!("/clip/v2/resource/light/{id}"), None).await?;
-            saved.push((id.clone(), restore_body(&data[0])));
+            match self.request(state, "GET", &format!("/clip/v2/resource/light/{id}"), None).await {
+                Ok(data) => saved.push((id.clone(), restore_body(&data[0]))),
+                Err(e) => errors.push(e),
+            }
         }
-        Ok(saved)
+        (saved, errors)
     }
 
+    /// Puts every light back, carrying on past failures.
     pub async fn restore_lights(&self, state: &HueState, saved: &[(String, Value)]) -> Result<(), String> {
+        let mut errors = Vec::new();
         for (id, body) in saved {
-            self.request(state, "PUT", &format!("/clip/v2/resource/light/{id}"), Some(body.clone()))
-                .await?;
+            if let Err(e) = self
+                .request(state, "PUT", &format!("/clip/v2/resource/light/{id}"), Some(body.clone()))
+                .await
+            {
+                errors.push(e);
+            }
         }
-        Ok(())
+        match errors.first() {
+            None => Ok(()),
+            Some(first) => Err(format!("{} of {} lights not restored: {first}", errors.len(), saved.len())),
+        }
     }
 
     pub async fn create_area(&self, state: &HueState, draft: &AreaDraft) -> Result<String, String> {

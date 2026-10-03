@@ -9,7 +9,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -33,14 +33,30 @@ const STATS_EVERY: Duration = Duration::from_secs(10);
 const SPECTRUM_EVERY: u32 = 2; // 25 Hz for the music visualizer
 const SCREEN_EVERY: u32 = 5; // 10 Hz for the screen preview
 const VISIBILITY_EVERY: Duration = Duration::from_secs(1);
+/// How often the area's state is checked on the bridge while streaming.
+const WATCH_EVERY: Duration = Duration::from_secs(10);
+/// A gap between frames this long means the computer was asleep.
+const SUSPEND_GAP: Duration = Duration::from_secs(3);
+/// Waits before each reconnect attempt: about a minute in all.
+const RECONNECT_DELAYS: [Duration; 7] = [
+    Duration::ZERO,
+    Duration::from_secs(1),
+    Duration::from_secs(2),
+    Duration::from_secs(4),
+    Duration::from_secs(8),
+    Duration::from_secs(15),
+    Duration::from_secs(30),
+];
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Preview {
     /// Channel colors, "#RRGGBB", in channel order.
     colors: Vec<String>,
-    /// Music only: audio input gone for now (e.g. sound server restarting).
+    /// Input gone for now: music (sound server restarting) or screen (no picture).
     audio_lost: bool,
+    /// The stream broke and is being reconnected.
+    reconnecting: bool,
 }
 
 /// The coarse screen grid for the Screen tab's preview: sRGB bytes, row-major.
@@ -183,10 +199,18 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
     }
 
     let saved = if request.restore {
-        access.light_snapshot(&hue, &area.light_ids).await.unwrap_or_else(|e| {
-            logs::write(app, "warn", "app", "sync.snapshot_failed", e, None);
-            Vec::new()
-        })
+        let (saved, errors) = access.light_snapshot(&hue, &area.light_ids).await;
+        if let Some(first) = errors.first() {
+            logs::write(
+                app,
+                "warn",
+                "app",
+                "sync.snapshot_failed",
+                format!("{} of {} lights won't be restored: {first}", errors.len(), area.light_ids.len()),
+                None,
+            );
+        }
+        saved
     } else {
         Vec::new()
     };
@@ -231,15 +255,23 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
         "screen" => {
             let grid = Arc::new(Mutex::new(None));
             let lost = Arc::new(AtomicBool::new(false));
+            let failure = Arc::new(Mutex::new(None));
             let log_app = app.clone();
-            let on_event = Box::new(move |event: ScreenEvent| {
-                let (level, code, message) = match event {
-                    ScreenEvent::Opened(what) => ("info", "sync.screen_opened", format!("Capturing {what}")),
-                    ScreenEvent::Lost(why) => ("warn", "sync.screen_lost", format!("Screen capture lost: {why}")),
-                    ScreenEvent::Restored => ("info", "sync.screen_restored", "Screen capture is back".to_string()),
-                    ScreenEvent::Detail { code, message, warn } => (if warn { "warn" } else { "debug" }, code, message),
-                };
-                logs::write(&log_app, level, "app", code, message, None);
+            let on_event = Box::new({
+                let failure = failure.clone();
+                move |event: ScreenEvent| {
+                    let (level, code, message) = match event {
+                        ScreenEvent::Opened(what) => ("info", "sync.screen_opened", format!("Capturing {what}")),
+                        ScreenEvent::Lost(why) => ("warn", "sync.screen_lost", format!("Screen capture lost: {why}")),
+                        ScreenEvent::Restored => ("info", "sync.screen_restored", "Screen capture is back".to_string()),
+                        ScreenEvent::Failed(why) => {
+                            *failure.lock().unwrap() = Some(why.clone());
+                            ("error", "sync.screen_failed", why)
+                        }
+                        ScreenEvent::Detail { code, message, warn } => (if warn { "warn" } else { "debug" }, code, message),
+                    };
+                    logs::write(&log_app, level, "app", code, message, None);
+                }
             });
             let started = if screen_capture::is_wayland() {
                 ScreenSource::start_portal(grid.clone(), lost.clone(), on_event).await
@@ -254,7 +286,7 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
                 }
                 Err(StartError::Failed(message)) => return fail(app, "screen", message),
             }
-            Box::new(ScreenEffect::new(request.intensity, request.safe_mode, grid, lost))
+            Box::new(ScreenEffect::new(request.intensity, request.safe_mode, grid, lost, failure))
         }
         _ => Box::new(PaletteCycle::new(palette, request.intensity)),
     };
@@ -272,10 +304,11 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
     );
 
     let stop = Arc::new(AtomicBool::new(false));
+    let dropped = Arc::new(AtomicBool::new(false));
     let thread = std::thread::Builder::new().name("hue-sync-stream".into()).spawn({
-        let (app, stop, area, ip, key) = (app.clone(), stop.clone(), area.clone(), access.ip.clone(), access.key.clone());
+        let (app, stop, dropped, access, area) = (app.clone(), stop.clone(), dropped.clone(), access.clone(), area.clone());
         move || {
-            let result = stream_loop(&app, &stop, &area, &ip, &key, &client_key, effect);
+            let result = stream_loop(&app, &stop, &dropped, &access, &area, &client_key, effect);
             drop(audio); // capture ends with the stream
             drop(screen);
             result
@@ -288,6 +321,7 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
             return fail(app, "thread", e.to_string());
         }
     };
+    let watchdog = tauri::async_runtime::spawn(watch_area(app.clone(), access.clone(), area.id.clone(), dropped));
 
     let supervisor = tauri::async_runtime::spawn({
         let (app, stop) = (app.clone(), stop.clone());
@@ -297,6 +331,7 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
                 .map_err(|e| e.to_string())
                 .and_then(|joined| joined.map_err(|_| "stream thread panicked".to_string()))
                 .and_then(|r| r);
+            watchdog.abort();
             finish(&app, &access, &area, &saved, result, stop.load(Ordering::SeqCst)).await;
         }
     });
@@ -360,19 +395,40 @@ async fn finish(
     }
 }
 
+/// Polls the area while streaming: the bridge can end a stream without a
+/// word on the DTLS socket (it timed out during suspend, or the Hue app
+/// stopped it). Two inactive polls in a row raise `dropped`.
+async fn watch_area(app: AppHandle, access: BridgeAccess, area_id: String, dropped: Arc<AtomicBool>) {
+    let mut misses = 0;
+    loop {
+        tokio::time::sleep(WATCH_EVERY).await;
+        let hue = app.state::<HueState>();
+        // Unreachable is not "dropped": send errors and the suspend check
+        // cover a dead network.
+        let Ok(areas) = access.areas(&hue).await else { continue };
+        let active = areas.iter().any(|a| a.id == area_id && a.status == "active");
+        misses = if active { 0 } else { misses + 1 };
+        if misses >= 2 {
+            misses = 0;
+            dropped.store(true, Ordering::SeqCst);
+        }
+    }
+}
+
 /// The stream thread: connect, then render → encode → send at 50 Hz until
-/// told to stop. Returns the number of packets sent.
+/// told to stop. A stream the bridge dropped is reconnected. Returns the
+/// number of packets sent.
 fn stream_loop(
     app: &AppHandle,
     stop: &AtomicBool,
+    dropped: &AtomicBool,
+    access: &BridgeAccess,
     area: &Area,
-    ip: &str,
-    key: &str,
     client_key: &str,
     mut effect: Box<dyn Effect>,
 ) -> Result<u32, String> {
     let connected = Instant::now();
-    let mut stream = DtlsStream::connect(ip, key, client_key)?;
+    let mut stream = DtlsStream::connect(&access.ip, &access.key, client_key)?;
     logs::write(app, "debug", "app", "sync.connected", format!("DTLS connected in {} ms", connected.elapsed().as_millis()), None);
     set_status(app, SyncStatus::Streaming { area_id: area.id.clone(), light_ids: area.light_ids.clone() });
 
@@ -385,7 +441,35 @@ fn stream_loop(
     let mut stats_sent: u32 = 0;
     let mut last = Instant::now();
     let mut next_frame = Instant::now();
+    // Instant doesn't advance while the computer sleeps; the wall clock does.
+    let mut wall = SystemTime::now();
+    let mut preview: Vec<String> = Vec::new();
+    // Why the stream needs a new connection, if it does.
+    let mut broken: Option<String> = None;
     while !stop.load(Ordering::SeqCst) {
+        if let Some(message) = effect.failure() {
+            stream.close();
+            return Err(message);
+        }
+
+        let wall_now = SystemTime::now();
+        if slept_between(wall, wall_now) {
+            broken = Some("the computer was asleep".into());
+        } else if dropped.swap(false, Ordering::SeqCst) {
+            broken = Some("the bridge ended the stream".into());
+        }
+        wall = wall_now;
+        if let Some(why) = broken.take() {
+            let waiting = Preview { colors: preview.clone(), audio_lost: effect.input_lost(), reconnecting: true };
+            match reconnect(app, stop, access, area, client_key, stream, &why, waiting)? {
+                Some(fresh) => stream = fresh,
+                None => return Ok(sent), // stopped while reconnecting
+            }
+            dropped.store(false, Ordering::SeqCst);
+            (last, next_frame, wall) = (Instant::now(), Instant::now(), SystemTime::now());
+            continue;
+        }
+
         let now = Instant::now();
         let dt = now.duration_since(last).as_secs_f32();
         last = now;
@@ -397,16 +481,17 @@ fn stream_loop(
             .zip(&colors)
             .map(|(c, rgb)| ChannelColor::rgb(c.channel_id, rgb[0], rgb[1], rgb[2]))
             .collect();
-        stream.send(&encode(sent as u8, &area.id, ColorSpace::Rgb, &channels)?)?;
+        if let Err(e) = stream.send(&encode(sent as u8, &area.id, ColorSpace::Rgb, &channels)?) {
+            broken = Some(format!("sending failed: {e}"));
+            continue;
+        }
         sent = sent.wrapping_add(1);
 
         if sent.is_multiple_of(PREVIEW_EVERY) {
+            preview = colors.iter().map(|c| to_hex(*c)).collect();
             let _ = app.emit(
                 "sync-preview",
-                Preview {
-                    colors: colors.iter().map(|c| to_hex(*c)).collect(),
-                    audio_lost: effect.input_lost(),
-                },
+                Preview { colors: preview.clone(), audio_lost: effect.input_lost(), reconnecting: false },
             );
         }
         // Visualizers: only for a visible window - a hidden one's JS is
@@ -451,6 +536,72 @@ fn stream_loop(
     Ok(sent)
 }
 
+/// A new connection for a stream that broke: start the area again (the
+/// bridge deactivates it with the old session) and handshake, retrying with
+/// backoff - after a wake-up the network takes a few seconds to return.
+/// None when told to stop meanwhile; Err once every try has failed.
+#[allow(clippy::too_many_arguments)]
+fn reconnect(
+    app: &AppHandle,
+    stop: &AtomicBool,
+    access: &BridgeAccess,
+    area: &Area,
+    client_key: &str,
+    old: DtlsStream,
+    why: &str,
+    waiting: Preview,
+) -> Result<Option<DtlsStream>, String> {
+    logs::write(app, "warn", "app", "sync.reconnect", format!("Reconnecting to the bridge: {why}"), None);
+    let _ = app.emit("sync-preview", waiting);
+    old.close();
+    let hue = app.state::<HueState>();
+    let started = Instant::now();
+    let mut last_error = String::new();
+    for (attempt, delay) in RECONNECT_DELAYS.iter().enumerate() {
+        if !sleep_unless_stopped(*delay, stop) {
+            return Ok(None);
+        }
+        let connected = tauri::async_runtime::block_on(access.set_streaming(&hue, &area.id, true))
+            .and_then(|()| DtlsStream::connect(&access.ip, &access.key, client_key));
+        match connected {
+            Ok(stream) => {
+                logs::write(
+                    app,
+                    "info",
+                    "app",
+                    "sync.reconnected",
+                    format!("Reconnected to the bridge in {} s", started.elapsed().as_secs()),
+                    Some(json!({ "attempt": attempt + 1 })),
+                );
+                return Ok(Some(stream));
+            }
+            Err(e) => {
+                logs::write(app, "debug", "app", "sync.reconnect_failed", format!("Attempt {}: {e}", attempt + 1), None);
+                last_error = e;
+            }
+        }
+    }
+    Err(format!("Lost the connection to the bridge ({why}) and couldn't get it back: {last_error}"))
+}
+
+/// Sleeps in short steps; false as soon as `stop` is set.
+fn sleep_unless_stopped(duration: Duration, stop: &AtomicBool) -> bool {
+    let until = Instant::now() + duration;
+    while Instant::now() < until {
+        if stop.load(Ordering::SeqCst) {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(100).min(until - Instant::now()));
+    }
+    !stop.load(Ordering::SeqCst)
+}
+
+/// Whether the computer slept between two frames: far more wall-clock time
+/// passed than a frame takes (a clock set backwards doesn't count).
+fn slept_between(before: SystemTime, now: SystemTime) -> bool {
+    now.duration_since(before).is_ok_and(|gap| gap > SUSPEND_GAP)
+}
+
 /// Linear RGB back to "#RRGGBB" (sRGB) for the UI preview.
 fn to_hex(rgb: [f32; 3]) -> String {
     let [r, g, b] = rgb.map(effects::linear_to_srgb8);
@@ -469,6 +620,31 @@ mod tests {
             json!({ "state": "streaming", "areaId": "a", "lightIds": ["l"] })
         );
         assert_eq!(serde_json::to_value(SyncStatus::Idle).unwrap(), json!({ "state": "idle" }));
+    }
+
+    #[test]
+    fn sleep_shows_as_a_wall_clock_gap() {
+        let t = SystemTime::now();
+        assert!(!slept_between(t, t + FRAME));
+        assert!(!slept_between(t, t + Duration::from_secs(1)));
+        assert!(slept_between(t, t + Duration::from_secs(60)));
+        assert!(!slept_between(t + Duration::from_secs(60), t), "clock set back");
+    }
+
+    #[test]
+    fn reconnect_tries_for_about_a_minute() {
+        let total: Duration = RECONNECT_DELAYS.iter().sum();
+        assert!(total >= Duration::from_secs(45) && total <= Duration::from_secs(90), "{total:?}");
+        assert_eq!(RECONNECT_DELAYS[0], Duration::ZERO, "first try right away");
+    }
+
+    #[test]
+    fn sleeping_ends_early_when_stopped() {
+        let stop = AtomicBool::new(true);
+        let started = Instant::now();
+        assert!(!sleep_unless_stopped(Duration::from_secs(5), &stop));
+        assert!(started.elapsed() < Duration::from_secs(1));
+        assert!(sleep_unless_stopped(Duration::ZERO, &AtomicBool::new(false)));
     }
 
     #[test]

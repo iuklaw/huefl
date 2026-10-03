@@ -161,7 +161,7 @@ function SyncControls({
   onNewArea: () => void;
   onEditArea: (area: SyncArea) => void;
 }) {
-  const { status, preview, overview, audioLost, monitors } = useSyncState();
+  const { status, preview, overview, audioLost, reconnecting, monitors } = useSyncState();
   const audioCheck = overview?.checks.find((c) => c.id === "audio");
   const { syncPrefs, library } = useAppState();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -451,13 +451,17 @@ function SyncControls({
                 : t("sync.start")}
         </Button>
 
-        {status.state === "streaming" && audioLost && (
+        {status.state === "streaming" && (reconnecting || audioLost) && (
           <p
             className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground"
             aria-live="polite"
           >
             <Spinner className="size-3" />
-            {mode === "screen" ? t("sync.screen_waiting") : t("sync.audio_waiting")}
+            {reconnecting
+              ? t("sync.reconnecting")
+              : mode === "screen"
+                ? t("sync.screen_waiting")
+                : t("sync.audio_waiting")}
           </p>
         )}
       </div>

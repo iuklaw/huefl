@@ -228,12 +228,13 @@ mod live {
         let hue = HueState::default();
         let (access, client_key) = manager::bridge_access().unwrap();
         let area = access.areas(&hue).await.unwrap().into_iter().next().expect("an area");
-        let saved = access.light_snapshot(&hue, &area.light_ids).await.unwrap();
+        let (saved, errors) = access.light_snapshot(&hue, &area.light_ids).await;
+        assert!(errors.is_empty(), "{errors:?}");
 
         let grid = Arc::new(Mutex::new(None));
         let lost = Arc::new(AtomicBool::new(false));
         let source = ScreenSource::start(None, grid.clone(), lost.clone(), Box::new(|e| println!("screen: {e:?}"))).unwrap();
-        let mut effect = ScreenEffect::new(1, true, grid, lost);
+        let mut effect = ScreenEffect::new(1, true, grid, lost, Arc::default());
 
         access.set_streaming(&hue, &area.id, true).await.unwrap();
         let cpu_before = cpu_seconds();

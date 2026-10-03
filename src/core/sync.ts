@@ -32,6 +32,7 @@ export type SyncRequest = {
 type Preview = {
   colors: string[];
   audioLost: boolean;
+  reconnecting: boolean;
 };
 
 export type SyncState = {
@@ -42,8 +43,10 @@ export type SyncState = {
   error: string | null;
   /** Current channel colors while streaming, "#RRGGBB" in channel order. */
   preview: string[];
-  /** Music: the audio input is gone for now (sound server restarting, …). */
+  /** The input is gone for now: music (sound server restarting, …) or screen (no picture). */
   audioLost: boolean;
+  /** The stream broke (sleep, network, bridge) and is being reconnected. */
+  reconnecting: boolean;
   /** Names for "Sound from"; null until asked or when there's no sound server. */
   audioDevices: AudioDevices | null;
   /** Monitors for screen sync; null until asked or when capture is unavailable. */
@@ -57,6 +60,7 @@ let state: SyncState = {
   error: null,
   preview: [],
   audioLost: false,
+  reconnecting: false,
   audioDevices: null,
   monitors: null,
 };
@@ -140,13 +144,14 @@ void listen<SyncStatus>("sync-status", ({ payload }) => {
     status: payload,
     preview: streaming ? state.preview : [],
     audioLost: streaming && state.audioLost,
+    reconnecting: streaming && state.reconnecting,
   });
   // Area "active" flags change with the stream; keep the overview honest.
   if (payload.state === "idle" || payload.state === "streaming") void sync.refresh();
 });
 
 void listen<Preview>("sync-preview", ({ payload }) =>
-  patch({ preview: payload.colors, audioLost: payload.audioLost }),
+  patch({ preview: payload.colors, audioLost: payload.audioLost, reconnecting: payload.reconnecting }),
 );
 
 void invoke<SyncStatus>("sync_status")

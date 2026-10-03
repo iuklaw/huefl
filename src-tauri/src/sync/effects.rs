@@ -40,6 +40,11 @@ pub trait Effect: Send {
     fn input_lost(&self) -> bool {
         false
     }
+
+    /// The input can't work at all: the session ends with this message.
+    fn failure(&self) -> Option<String> {
+        None
+    }
 }
 
 /// Speed per intensity step (0 subtle … 3 extreme), in palette cycles per second.
@@ -205,6 +210,8 @@ impl Effect for MusicEffect {
 /// Reaction time per intensity step (0 subtle … 3 extreme), seconds. How
 /// vivid the colors are also follows intensity: zones::ZoneStyle.
 const SCREEN_FOLLOW: [f32; 4] = [0.5, 0.25, 0.12, 0.05];
+/// Seconds without a picture before the UI says it's waiting for the screen.
+const NO_PICTURE_AFTER: f32 = 5.0;
 
 /// Each light follows the part of the screen matching its place in the area
 /// (screen::zones). Colors glide rather than jump; the safe mode caps flashes
@@ -216,10 +223,20 @@ pub struct ScreenEffect {
     envelopes: Vec<[Envelope; 3]>,
     safe: Option<SafetyLimiter>,
     lost: Arc<AtomicBool>,
+    /// Set by capture when it can never give a picture.
+    failure: Arc<Mutex<Option<String>>>,
+    /// Seconds rendered without a picture (none yet, or capture stalled).
+    no_picture: f32,
 }
 
 impl ScreenEffect {
-    pub fn new(intensity: u8, safe_mode: bool, grid: Arc<Mutex<Option<Grid>>>, lost: Arc<AtomicBool>) -> Self {
+    pub fn new(
+        intensity: u8,
+        safe_mode: bool,
+        grid: Arc<Mutex<Option<Grid>>>,
+        lost: Arc<AtomicBool>,
+        failure: Arc<Mutex<Option<String>>>,
+    ) -> Self {
         Self {
             grid,
             follow: SCREEN_FOLLOW[usize::from(intensity.min(3))],
@@ -227,6 +244,8 @@ impl ScreenEffect {
             envelopes: Vec::new(),
             safe: safe_mode.then(SafetyLimiter::default),
             lost,
+            failure,
+            no_picture: 0.0,
         }
     }
 }
@@ -234,8 +253,14 @@ impl ScreenEffect {
 impl Effect for ScreenEffect {
     fn render(&mut self, dt: f32, channels: &[AreaChannel]) -> Vec<Rgb> {
         let targets = match self.grid.lock().unwrap().as_ref() {
-            Some(grid) => zone_colors(grid, channels, self.style),
-            None => vec![[0.0; 3]; channels.len()],
+            Some(grid) => {
+                self.no_picture = 0.0;
+                zone_colors(grid, channels, self.style)
+            }
+            None => {
+                self.no_picture += dt;
+                vec![[0.0; 3]; channels.len()]
+            }
         };
         self.envelopes.resize(channels.len(), [Envelope::default(); 3]);
         let mut colors: Vec<Rgb> = targets
@@ -268,7 +293,13 @@ impl Effect for ScreenEffect {
     }
 
     fn input_lost(&self) -> bool {
-        self.lost.load(Ordering::Relaxed)
+        // A picture that never came (or stopped coming) is as good as lost:
+        // without this the lights just stay dark with nothing said.
+        self.lost.load(Ordering::Relaxed) || self.no_picture >= NO_PICTURE_AFTER
+    }
+
+    fn failure(&self) -> Option<String> {
+        self.failure.lock().unwrap().clone()
     }
 }
 
@@ -444,7 +475,7 @@ mod tests {
         use crate::sync::screen::zones::{GRID_COLS, GRID_ROWS};
         let red = Grid { cells: vec![[1.0, 0.0, 0.0]; GRID_COLS * GRID_ROWS], aspect: 16.0 / 9.0 };
         let grid = Arc::new(Mutex::new(Some(red)));
-        let mut effect = ScreenEffect::new(3, false, grid.clone(), Arc::default());
+        let mut effect = ScreenEffect::new(3, false, grid.clone(), Arc::default(), Arc::default());
         let channels = [channel(0, 0.0)];
         let mut color = [0.0; 3];
         for _ in 0..25 {
@@ -456,6 +487,35 @@ mod tests {
             color = effect.render(0.02, &channels)[0];
         }
         assert!(color[0] < 0.05, "dims when the screen is gone: {color:?}");
+    }
+
+    #[test]
+    fn screen_effect_says_when_no_picture_comes() {
+        let grid = Arc::new(Mutex::new(None));
+        let mut effect = ScreenEffect::new(1, false, grid.clone(), Arc::default(), Arc::default());
+        let channels = [channel(0, 0.0)];
+        for _ in 0..200 {
+            effect.render(0.02, &channels); // 4 s: still starting up
+        }
+        assert!(!effect.input_lost());
+        for _ in 0..100 {
+            effect.render(0.02, &channels);
+        }
+        assert!(effect.input_lost(), "no picture for 6 s");
+
+        use crate::sync::screen::zones::{GRID_COLS, GRID_ROWS};
+        *grid.lock().unwrap() = Some(Grid { cells: vec![[0.5; 3]; GRID_COLS * GRID_ROWS], aspect: 1.0 });
+        effect.render(0.02, &channels);
+        assert!(!effect.input_lost(), "the picture is back");
+    }
+
+    #[test]
+    fn screen_effect_reports_a_capture_failure() {
+        let failure = Arc::new(Mutex::new(None));
+        let effect = ScreenEffect::new(1, false, Arc::default(), Arc::default(), failure.clone());
+        assert_eq!(effect.failure(), None);
+        *failure.lock().unwrap() = Some("unreadable frames".to_string());
+        assert_eq!(effect.failure().as_deref(), Some("unreadable frames"));
     }
 
     #[test]
