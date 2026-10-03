@@ -7,7 +7,7 @@
 [![Latest release](https://img.shields.io/github/v/release/iuklaw/huefl?sort=semver&label=release)](https://github.com/iuklaw/huefl/releases/latest)
 [![Release date](https://img.shields.io/github/release-date/iuklaw/huefl?label=released)](https://github.com/iuklaw/huefl/releases/latest)
 [![License: MIT](https://img.shields.io/github/license/iuklaw/huefl)](LICENSE)
-![Platform: Linux x86_64](https://img.shields.io/badge/platform-Linux%20x86__64-informational)
+![Platform: Linux x86_64 and ARM64](https://img.shields.io/badge/platform-Linux%20x86__64%20%7C%20ARM64-informational)
 [![Website](https://img.shields.io/badge/website-huefl.iuklaw.com-blue)](https://huefl.iuklaw.com/)
 
 Control your Hue lights and sync them with your music and your screen. HueFL talks to the Hue Bridge directly on your local network.
@@ -66,26 +66,26 @@ Download the latest release from the [Releases page](https://github.com/iuklaw/h
 ### AppImage (any distribution, incl. SteamOS)
 
 ```bash
-chmod +x HueFL_*_amd64.AppImage
-./HueFL_*_amd64.AppImage
+chmod +x HueFL_*.AppImage
+./HueFL_*.AppImage
 ```
 
 ### Debian / Ubuntu (.deb)
 
 ```bash
-sudo apt install ./HueFL_*_amd64.deb
+sudo apt install ./HueFL_*.deb
 ```
 
 ### Fedora / openSUSE (.rpm)
 
 ```bash
-sudo dnf install ./HueFL-*.x86_64.rpm 
-sudo zypper install ./HueFL-*.x86_64.rpm
+sudo dnf install ./HueFL-*.rpm
+sudo zypper install ./HueFL-*.rpm
 ```
 
 ### Releases and updates
 
-Every version is published on the [Releases page](https://github.com/iuklaw/huefl/releases) with its changes, an AppImage, a .deb and an .rpm. Releases are built by [GitHub Actions](https://github.com/iuklaw/huefl/actions/workflows/release.yml) from the tagged source and signed.
+Every version is published on the [Releases page](https://github.com/iuklaw/huefl/releases) with its changes, an AppImage, a .deb and an .rpm, for x86_64 and ARM64. Releases are built by [GitHub Actions](https://github.com/iuklaw/huefl/actions/workflows/release.yml) from the tagged source and signed.
 
 HueFL checks for new versions itself (shortly after start and every few hours). When one is out, its number appears next to the app's name in the title bar - click it to see what's new, download and install it, and restart. AppImages update in place; the .deb and .rpm ask for your password. Automatic checks can be turned off in **Options -> About**.
 
@@ -95,7 +95,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#building-from-source).
 
 ## Requirements
 
-- **Linux, x86_64** - Ubuntu 22.04 or newer, Debian 12+, Fedora, openSUSE Tumbleweed, Arch, SteamOS and others with WebKitGTK 4.1.
+- **Linux, x86_64 or ARM64** - Ubuntu 22.04 or newer, Debian 12+, Fedora, openSUSE Tumbleweed, Arch, SteamOS and others with WebKitGTK 4.1.
 - **A Philips Hue Bridge** on the same network. Light sync needs a **Hue Bridge v2** and color lights.
 - **System tray** - works out of the box on KDE, Cinnamon, XFCE and Ubuntu's GNOME. On plain GNOME, install the [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/).
 - **Music sync** - PulseAudio, or PipeWire with `pipewire-pulse` (the default on current desktops).

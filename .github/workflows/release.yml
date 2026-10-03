@@ -1,6 +1,6 @@
 # Builds a release when a version tag is pushed (git tag v0.2.0 && git push --tags):
-# AppImage + .deb + .rpm, signed for the in-app updater, plus latest.json - as a
-# draft GitHub release to check and publish by hand.
+# AppImage + .deb + .rpm for x86_64 and ARM64, signed for the in-app updater,
+# plus latest.json - as a draft GitHub release to check and publish by hand.
 #
 
 name: Release
@@ -14,7 +14,12 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        runner: [ubuntu-22.04, ubuntu-22.04-arm]
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
