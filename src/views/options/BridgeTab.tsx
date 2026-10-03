@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, Router, Trash2 } from "lucide-react";
+import { Eye, EyeOff, RefreshCw, Router, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,10 +43,10 @@ export function BridgeTab({ state }: { state: AppState }) {
   }
 
   const unknown = t("common.unknown");
-  const fields: Array<[string, string | null]> = [
+  const fields: Array<[string, string | null, boolean?]> = [
     [t("bridge.field.name"), bridge.name],
     [t("bridge.field.ip"), bridge.ip],
-    [t("bridge.field.id"), bridge.bridgeId?.toUpperCase() ?? null],
+    [t("bridge.field.id"), bridge.bridgeId?.toUpperCase() ?? null, true],
     [t("bridge.field.model"), bridge.modelId],
     [t("bridge.field.firmware"), bridge.softwareVersion],
     [t("bridge.field.timezone"), bridge.timeZone],
@@ -67,12 +67,16 @@ export function BridgeTab({ state }: { state: AppState }) {
 
       <Section title={t("options.tab.bridge")}>
         <dl className="divide-y divide-border overflow-hidden rounded-lg bg-card text-sm">
-          {fields.map(([label, value]) => (
+          {fields.map(([label, value, hidden]) => (
             <div key={label} className="flex items-center justify-between gap-4 px-3 py-2">
               <dt className="text-muted-foreground">{label}</dt>
-              <dd data-selectable className="truncate text-right">
-                {value ?? unknown}
-              </dd>
+              {hidden && value ? (
+                <HiddenValue value={value} />
+              ) : (
+                <dd data-selectable className="truncate text-right">
+                  {value ?? unknown}
+                </dd>
+              )}
             </div>
           ))}
         </dl>
@@ -99,6 +103,32 @@ export function BridgeTab({ state }: { state: AppState }) {
         <ForgetButton />
       </div>
     </div>
+  );
+}
+
+function HiddenValue({ value }: { value: string }) {
+  const [shown, setShown] = useState(false);
+  return (
+    <dd className="flex min-w-0 items-center gap-1">
+      {shown ? (
+        <span data-selectable className="truncate">
+          {value}
+        </span>
+      ) : (
+        <span aria-hidden className="tracking-widest">
+          ••••••••••••
+        </span>
+      )}
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label={shown ? t("common.hide") : t("common.show")}
+        aria-pressed={shown}
+        onClick={() => setShown(!shown)}
+      >
+        {shown ? <EyeOff /> : <Eye />}
+      </Button>
+    </dd>
   );
 }
 

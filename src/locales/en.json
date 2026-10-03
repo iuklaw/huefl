@@ -309,6 +309,8 @@
   "sync.options.restore_hint": "When sync stops, lights go back to how they were before it started.",
 
   "common.cancel": "Cancel",
+  "common.show": "Show",
+  "common.hide": "Hide",
   "common.unknown": "-",
 
   "error.link_button": "Press the round button on the bridge and try again (you have ~30 s).",

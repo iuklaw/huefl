@@ -11,6 +11,7 @@ import { updates, useUpdates } from "@/core/updates";
 import { useAppState } from "@/core/useAppState";
 import { useAppVersion } from "@/core/useAppVersion";
 import { t } from "@/i18n";
+import { cn } from "@/lib/utils";
 
 export function AboutTab() {
   const version = useAppVersion();
@@ -61,21 +62,24 @@ function UpdatesSection() {
     );
   }
 
+  const message =
+    update.status === "checking"
+      ? t("update.checking")
+      : update.status === "upToDate"
+        ? t("update.up_to_date")
+        : offer
+          ? t("update.available_short", { version: update.info.version })
+          : update.status === "error"
+            ? t("update.check_failed")
+            : update.status === "unavailable"
+              ? t("update.unavailable")
+              : null;
+
   return (
     <div className="mx-auto max-w-xs space-y-2 rounded-lg bg-card p-3 text-left">
-      <div className="flex items-center justify-between gap-2">
-        <p className="min-w-0 text-xs" aria-live="polite">
-          {update.status === "checking"
-            ? t("update.checking")
-            : update.status === "upToDate"
-              ? t("update.up_to_date")
-              : offer
-                ? t("update.available_short", { version: update.info.version })
-                : update.status === "error"
-                  ? t("update.check_failed")
-                  : update.status === "unavailable"
-                    ? t("update.unavailable")
-                    : null}
+      <div className={cn("flex items-center gap-2", message ? "justify-between" : "justify-center")}>
+        <p className={cn("min-w-0 text-xs", !message && "sr-only")} aria-live="polite">
+          {message}
         </p>
         {offer ? (
           <Button size="xs" onClick={openUpdateDialog}>
