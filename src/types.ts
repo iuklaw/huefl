@@ -140,8 +140,9 @@ export type Result = { ok: boolean; error?: string };
 /** Everything the UI can ask the core to do. */
 export type Actions = {
   discover(): Promise<BridgeCandidate[]>;
-  /** Returns ok:false with a message when the bridge button was not pressed. */
-  pair(ip: string): Promise<Result>;
+  /** Waits up to LINK_WAIT_MS for the bridge button. Returns ok:false with a
+   *  message on failure, and without one when `signal` aborted. */
+  pair(ip: string, signal: AbortSignal): Promise<Result>;
   forget(): Promise<Result>;
   reconnect(): Promise<void>;
   setRoom(command: LightCommand): Promise<Result>;

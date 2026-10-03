@@ -27,6 +27,13 @@ export class LinkButtonNotPressed extends Error {
   }
 }
 
+export class PairTimedOut extends Error {
+  constructor() {
+    super(t("error.link_timeout"));
+    this.name = "PairTimedOut";
+  }
+}
+
 // --- Discovery ---------------------------------------------------------------
 
 /**
@@ -35,25 +42,34 @@ export class LinkButtonNotPressed extends Error {
  */
 async function discoverViaMdns(): Promise<BridgeCandidate[]> {
   try {
-    const out = await invoke<string>("avahi_browse");
-
-    const found = new Map<string, BridgeCandidate>();
-    for (const line of out.split("\n")) {
-      // Resolved records start with "=" and have ";"-separated fields
-      if (!line.startsWith("=")) continue;
-      const parts = line.split(";");
-      const ip = parts[7];
-      const txt = parts[9] ?? "";
-      if (!ip) continue;
-      const idMatch = txt.match(/bridgeid=([0-9a-fA-F]+)/);
-      const id = (idMatch?.[1] ?? ip).toLowerCase();
-      found.set(ip, { id, ip, source: "mdns" });
-    }
-    return [...found.values()];
+    return parseAvahi(await invoke<string>("avahi_browse"));
   } catch {
     // No avahi-browse - not a problem, there is a fallback.
     return [];
   }
+}
+
+/**
+ * `avahi-browse -rpt` output → one candidate per bridge. A bridge is listed
+ * once per interface and mDNS transport; only IPv4 addresses are kept (the
+ * sync stream is IPv4-only, and a link-local IPv6 address comes without its
+ * interface).
+ */
+export function parseAvahi(out: string): BridgeCandidate[] {
+  const found = new Map<string, BridgeCandidate>();
+  for (const line of out.split("\n")) {
+    // Resolved records start with "=" and have ";"-separated fields:
+    // =;iface;transport;name;type;domain;host;address;port;txt
+    // (the transport says how the record came, not the address's family)
+    if (!line.startsWith("=")) continue;
+    const parts = line.split(";");
+    const ip = parts[7];
+    if (!ip || ip.includes(":")) continue;
+    const idMatch = (parts[9] ?? "").match(/bridgeid=([0-9a-fA-F]+)/);
+    const id = (idMatch?.[1] ?? ip).toLowerCase();
+    if (!found.has(id)) found.set(id, { id, ip, source: "mdns" });
+  }
+  return [...found.values()];
 }
 
 /**
@@ -67,13 +83,13 @@ async function discoverViaCloud(): Promise<BridgeCandidate[]> {
       id?: string;
       internalipaddress?: string;
     }>;
-    return list
-      .filter((b) => typeof b.internalipaddress === "string")
-      .map((b) => ({
-        id: (b.id ?? b.internalipaddress!).toLowerCase(),
-        ip: b.internalipaddress!,
-        source: "cloud",
-      }));
+    const found = new Map<string, BridgeCandidate>();
+    for (const b of list) {
+      if (typeof b.internalipaddress !== "string") continue;
+      const id = (b.id ?? b.internalipaddress).toLowerCase();
+      if (!found.has(id)) found.set(id, { id, ip: b.internalipaddress, source: "cloud" });
+    }
+    return [...found.values()];
   } catch {
     return [];
   }
@@ -189,6 +205,47 @@ export async function pairWithBridge(ip: string, appName = "huefl"): Promise<Pai
     clientKey: entry.success.clientkey ?? null,
     certFingerprint: pin.seen,
   };
+}
+
+/** How long pairing waits for the link button - the bridge may be out of reach. */
+export const LINK_WAIT_MS = 90_000;
+const LINK_POLL_MS = 2_000;
+
+/**
+ * Pairs as soon as the link button is pressed: retries while the bridge
+ * answers "link button not pressed", for up to LINK_WAIT_MS. The first try
+ * goes out at once, so pressing the button before clicking Pair still works.
+ * Any other error (wrong IP, TLS, timeout) ends it right away. Returns null
+ * when `signal` aborts - also if a key arrives after that: the user has
+ * moved on, and an unused key on the bridge is harmless.
+ */
+export async function pairWhenPressed(ip: string, signal: AbortSignal): Promise<PairResult | null> {
+  const deadline = Date.now() + LINK_WAIT_MS;
+  while (!signal.aborted) {
+    try {
+      const result = await pairWithBridge(ip);
+      return signal.aborted ? null : result;
+    } catch (error) {
+      if (signal.aborted) return null;
+      if (!(error instanceof LinkButtonNotPressed)) throw error;
+    }
+    if (Date.now() + LINK_POLL_MS > deadline) throw new PairTimedOut();
+    await sleep(LINK_POLL_MS, signal);
+  }
+  return null;
+}
+
+/** Resolves after `ms`, or as soon as `signal` aborts. */
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(done, ms);
+    signal.addEventListener("abort", done, { once: true });
+    function done() {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", done);
+      resolve();
+    }
+  });
 }
 
 // --- CLIP v2 resources -------------------------------------------------------

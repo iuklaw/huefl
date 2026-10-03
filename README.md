@@ -99,8 +99,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#building-from-source).
 ### First time setup
 
 1. Start HueFL. It looks for bridges on your network (or enter the bridge's IP address).
-2. Press the round **link button** on top of the bridge.
-3. Within 30 seconds, click **Pair**. Your rooms and lights appear.
+2. Click **Pair**, then press the round **link button** on top of the bridge within 90 seconds.
+3. HueFL pairs as soon as the button is pressed. Your rooms and lights appear.
 
 ### Light sync
 

@@ -22,8 +22,9 @@ import { locale, t } from "@/i18n";
 import {
   discoverBridges,
   HueClient,
-  LinkButtonNotPressed,
-  pairWithBridge,
+  LINK_WAIT_MS,
+  PairTimedOut,
+  pairWhenPressed,
   type HueResource,
 } from "@/hue/client";
 import {
@@ -108,9 +109,17 @@ export function getState(): AppState {
 export const actions: Actions = {
   discover: () => discoverBridges(),
 
-  pair: async (ip) => {
+  pair: async (ip, signal) => {
+    log.info("pairing", "pair.waiting", `Waiting for the link button on ${ip}`, {
+      ip,
+      seconds: LINK_WAIT_MS / 1000,
+    });
     try {
-      const result = await pairWithBridge(ip);
+      const result = await pairWhenPressed(ip, signal);
+      if (!result) {
+        log.info("pairing", "pair.cancelled", `Pairing with ${ip} was cancelled`);
+        return { ok: false };
+      }
       settings = {
         ...settings,
         bridgeIp: ip,
@@ -126,10 +135,9 @@ export const actions: Actions = {
       await connect();
       return { ok: true };
     } catch (error) {
-      const linkButton = error instanceof LinkButtonNotPressed;
       log.warn("pairing", "pair.failed", `Pairing with ${ip} failed: ${describe(error)}`, {
         ip,
-        reason: linkButton ? "link_button_not_pressed" : "error",
+        reason: error instanceof PairTimedOut ? "timeout" : "error",
       });
       return { ok: false, error: describe(error) };
     }
