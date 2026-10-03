@@ -13,20 +13,64 @@
 // Off while the key or the address isn't set yet, and in development builds.
 // HUEFL_UPDATE_ENDPOINT overrides the address (for testing a release locally;
 // the signature is still required).
+//
+// Only where the app is its own source of updates (`channel`): a build for a
+// package manager leaves the plugin out (Cargo feature `self-update`), and a
+// Flatpak never updates itself, whatever it was built with.
 
+#[cfg(feature = "self-update")]
 use std::sync::Mutex;
 
 use serde::Serialize;
+#[cfg(feature = "self-update")]
 use tauri::ipc::Channel;
+#[cfg(feature = "self-update")]
 use tauri::{AppHandle, Manager, State};
+#[cfg(feature = "self-update")]
 use tauri_plugin_updater::{Update, UpdaterExt};
 
+#[cfg(feature = "self-update")]
 use crate::logs;
 
+/// Where this copy's new versions come from.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum UpdateChannel {
+    /// The app itself, from GitHub Releases.
+    App,
+    /// Flathub, through the software center or `flatpak update`.
+    Flathub,
+    /// The system's package manager (a distro or AUR package).
+    Package,
+}
+
+pub fn channel() -> UpdateChannel {
+    channel_for(in_flatpak(), cfg!(feature = "self-update"))
+}
+
+fn channel_for(flatpak: bool, self_update: bool) -> UpdateChannel {
+    match (flatpak, self_update) {
+        (true, _) => UpdateChannel::Flathub,
+        (false, true) => UpdateChannel::App,
+        (false, false) => UpdateChannel::Package,
+    }
+}
+
+fn in_flatpak() -> bool {
+    std::env::var_os("FLATPAK_ID").is_some() || std::path::Path::new("/.flatpak-info").exists()
+}
+
+#[tauri::command]
+pub fn update_channel() -> UpdateChannel {
+    channel()
+}
+
 /// The update found by the last check, kept for `update_install`.
+#[cfg(feature = "self-update")]
 #[derive(Default)]
 pub struct PendingUpdate(Mutex<Option<Update>>);
 
+#[cfg(feature = "self-update")]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
@@ -37,6 +81,7 @@ pub struct UpdateInfo {
     date: Option<String>,
 }
 
+#[cfg(feature = "self-update")]
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Progress {
@@ -44,8 +89,12 @@ pub struct Progress {
     total: Option<u64>,
 }
 
-/// Whether this build can update itself: a public key and somewhere to look.
+/// Whether this copy can update itself
+#[cfg(feature = "self-update")]
 fn configured(app: &AppHandle) -> bool {
+    if channel() != UpdateChannel::App {
+        return false;
+    }
     let config = app.config().plugins.0.get("updater");
     let has = |key: &str| {
         config.and_then(|c| c.get(key)).is_some_and(|v| match v {
@@ -58,12 +107,14 @@ fn configured(app: &AppHandle) -> bool {
     has("pubkey") && endpoint && (!cfg!(debug_assertions) || override_endpoint().is_some())
 }
 
+#[cfg(feature = "self-update")]
 fn override_endpoint() -> Option<tauri::Url> {
     std::env::var("HUEFL_UPDATE_ENDPOINT").ok().and_then(|u| u.parse().ok())
 }
 
 /// Looks for a newer version. `Ok(None)`: up to date; `Err("not_configured")`:
 /// this build has no release key or address yet.
+#[cfg(feature = "self-update")]
 #[tauri::command]
 pub async fn update_check(app: AppHandle, pending: State<'_, PendingUpdate>) -> Result<Option<UpdateInfo>, String> {
     if !configured(&app) {
@@ -94,6 +145,7 @@ pub async fn update_check(app: AppHandle, pending: State<'_, PendingUpdate>) -> 
 
 /// Downloads and installs the update found by `update_check`, reporting
 /// progress. The app keeps running; `update_restart` switches over.
+#[cfg(feature = "self-update")]
 #[tauri::command]
 pub async fn update_install(
     app: AppHandle,
@@ -126,12 +178,33 @@ pub async fn update_install(
 
 /// Restarts into the new version - after ending a running sync, so the
 /// lights are given back first.
+#[cfg(feature = "self-update")]
 #[tauri::command]
 pub fn update_restart(app: AppHandle) {
     crate::sync::shutdown(&app);
     app.restart();
 }
 
+#[cfg(feature = "self-update")]
 pub fn init(app: &AppHandle) {
     app.manage(PendingUpdate::default());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_flatpak_never_updates_itself() {
+        assert_eq!(channel_for(true, true), UpdateChannel::Flathub);
+        assert_eq!(channel_for(true, false), UpdateChannel::Flathub);
+        assert_eq!(channel_for(false, true), UpdateChannel::App);
+        assert_eq!(channel_for(false, false), UpdateChannel::Package);
+    }
+
+    #[test]
+    fn channel_names_match_the_ui() {
+        assert_eq!(serde_json::to_value(UpdateChannel::Flathub).unwrap(), "flathub");
+        assert_eq!(serde_json::to_value(UpdateChannel::Package).unwrap(), "package");
+    }
 }

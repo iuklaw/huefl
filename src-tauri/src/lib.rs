@@ -20,13 +20,20 @@ fn quit(app: AppHandle) {
 pub fn run() {
     // Before anything reads them: bring config and logs over from the old name.
     let migrated = paths::migrate_legacy();
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .manage(hue::HueState::default())
         .manage(window::WindowPlacement::default())
-        .manage(sync::manager::SyncManager::default())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(sync::manager::SyncManager::default());
+    // Only where the app is its own source of updates (not in a Flatpak).
+    #[cfg(feature = "self-update")]
+    let builder = match updates::channel() {
+        updates::UpdateChannel::App => builder.plugin(tauri_plugin_updater::Builder::new().build()),
+        _ => builder,
+    };
+    builder
         .setup(move |app| {
             logs::init(app.handle());
+            #[cfg(feature = "self-update")]
             updates::init(app.handle());
             if !migrated.is_empty() {
                 logs::write(
@@ -79,8 +86,12 @@ pub fn run() {
             logs::log_read,
             logs::log_clear,
             logs::log_path,
+            updates::update_channel,
+            #[cfg(feature = "self-update")]
             updates::update_check,
+            #[cfg(feature = "self-update")]
             updates::update_install,
+            #[cfg(feature = "self-update")]
             updates::update_restart,
             report::bug_report_system_info,
             report::bug_report_logs,

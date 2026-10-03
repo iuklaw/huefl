@@ -53,6 +53,14 @@ function UpdatesSection() {
   const { preferences } = useAppState();
   const offer = update.status === "available" || update.status === "downloading" || update.status === "ready";
 
+  if (update.status === "managed") {
+    return (
+      <p className="mx-auto max-w-xs text-xs text-muted-foreground">
+        {update.by === "flathub" ? t("update.via_flathub") : t("update.via_package")}
+      </p>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-xs space-y-2 rounded-lg bg-card p-3 text-left">
       <div className="flex items-center justify-between gap-2">

@@ -21,6 +21,8 @@ Plus [Rust](https://rustup.rs) (stable) and Node.js 20+ with npm.
 
 `libpulse-dev` is for music sync and `libpipewire-0.3-dev` + `libclang-dev` for screen sync on Wayland. They're Cargo features (`sync-audio`, `sync-screen-wayland`, on by default); `--no-default-features` builds without them.
 
+Packaging HueFL for a distribution, the AUR or Flatpak? Leave out the `self-update` feature (on by default): the app then doesn't look for new versions and says in **Options → About** that updates come from the package manager. A Flatpak never updates itself, whatever it was built with.
+
 ### Run and build
 
 ```bash

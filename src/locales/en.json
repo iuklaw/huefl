@@ -357,6 +357,8 @@
   "update.available_short": "Version {version} is available.",
   "update.check_failed": "Couldn't check for updates (offline?).",
   "update.unavailable": "Updates aren't set up in this build yet.",
+  "update.via_flathub": "Updates come from Flathub, through your software center.",
+  "update.via_package": "Updates come from your package manager.",
   "update.open": "Update",
   "update.auto": "Check for updates automatically",
   "report.open": "Report a bug",

@@ -1,7 +1,8 @@
 // New versions, UI side. Rust does the checking, downloading and installing
 // (src-tauri/src/updates.rs, the official updater plugin with signed
 // releases); this keeps the state for the title bar's badge, the update
-// dialog and Options → About, and checks now and then.
+// dialog and Options → About, and checks now and then - unless updates come
+// from Flathub or a package manager (`update_channel`).
 
 import { useSyncExternalStore } from "react";
 import { Channel, invoke } from "@tauri-apps/api/core";
@@ -25,7 +26,12 @@ export type UpdateState =
   | { status: "ready"; info: UpdateInfo }
   | { status: "error"; info: UpdateInfo | null; message: string }
   /** This build has no release key / address yet. */
-  | { status: "unavailable" };
+  | { status: "unavailable" }
+  /** Updates come from elsewhere; the app doesn't look for them. */
+  | { status: "managed"; by: "flathub" | "package" };
+
+/** Rust's UpdateChannel. */
+type UpdateChannel = "app" | "flathub" | "package";
 
 let state: UpdateState = { status: "idle" };
 const listeners = new Set<() => void>();
@@ -58,7 +64,7 @@ const EVERY_MS = 6 * 3_600_000;
 export const updates = {
   /** `manual`: from "Check for updates" - shows "up to date" or the error. */
   async check(manual = false): Promise<void> {
-    if (state.status === "checking" || state.status === "downloading" || state.status === "ready") return;
+    if (["checking", "downloading", "ready", "managed"].includes(state.status)) return;
     if (manual) set({ status: "checking" });
     try {
       const info = await invoke<UpdateInfo | null>("update_check");
@@ -101,7 +107,8 @@ export const updates = {
   },
 };
 
-// Automatic checks: shortly after start, then every few hours - if enabled.
+// Automatic checks: shortly after start, then every few hours - if enabled
+// and this copy updates itself.
 let timer: ReturnType<typeof setTimeout> | null = null;
 function schedule(delay: number): void {
   if (timer) clearTimeout(timer);
@@ -110,7 +117,12 @@ function schedule(delay: number): void {
     schedule(EVERY_MS);
   }, delay);
 }
-schedule(FIRST_CHECK_MS);
+void invoke<UpdateChannel>("update_channel")
+  .catch(() => "app" as const)
+  .then((channel) => {
+    if (channel === "app") schedule(FIRST_CHECK_MS);
+    else set({ status: "managed", by: channel });
+  });
 
 // Turning the setting on checks right away.
 let wasOn = getState().preferences.checkForUpdates;
