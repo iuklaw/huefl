@@ -31,8 +31,19 @@
     "active": true,
     "targets": [
       "deb",
+      "rpm",
       "appimage"
     ],
+    "linux": {
+      "rpm": {
+        "depends": [
+          "libpulse.so.0()(64bit)",
+          "libpulse-simple.so.0()(64bit)",
+          "libpipewire-0.3.so.0()(64bit)",
+          "libssl.so.3()(64bit)"
+        ]
+      }
+    },
     "category": "Utility",
     "shortDescription": "Philips Hue for Linux",
     "icon": [

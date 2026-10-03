@@ -4,7 +4,7 @@
 // URL with a minisign signature), compares versions, and on the user's word
 // downloads and installs:
 //   AppImage  the file is replaced in place;
-//   .deb      installed with pkexec (the system's password prompt; the plugin
+//   .deb/.rpm installed with pkexec (the system's password prompt; the plugin
 //             falls back to zenity / kdialog).
 // The signature is checked against the public key built into the app
 // (tauri.conf.json → plugins.updater.pubkey): a file that wasn't signed with

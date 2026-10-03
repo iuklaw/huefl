@@ -76,11 +76,18 @@ chmod +x HueFL_*_amd64.AppImage
 sudo apt install ./HueFL_*_amd64.deb
 ```
 
+### Fedora / openSUSE (.rpm)
+
+```bash
+sudo dnf install ./HueFL-*.x86_64.rpm 
+sudo zypper install ./HueFL-*.x86_64.rpm
+```
+
 ### Releases and updates
 
-Every version is published on the [Releases page](https://github.com/iuklaw/huefl/releases) with its changes, an AppImage and a .deb. Releases are built by [GitHub Actions](https://github.com/iuklaw/huefl/actions/workflows/release.yml) from the tagged source and signed.
+Every version is published on the [Releases page](https://github.com/iuklaw/huefl/releases) with its changes, an AppImage, a .deb and an .rpm. Releases are built by [GitHub Actions](https://github.com/iuklaw/huefl/actions/workflows/release.yml) from the tagged source and signed.
 
-HueFL checks for new versions itself (shortly after start and every few hours). When one is out, its number appears next to the app's name in the title bar - click it to see what's new, download and install it, and restart. AppImages update in place; the .deb asks for your password. Automatic checks can be turned off in **Options → About**.
+HueFL checks for new versions itself (shortly after start and every few hours). When one is out, its number appears next to the app's name in the title bar - click it to see what's new, download and install it, and restart. AppImages update in place; the .deb and .rpm ask for your password. Automatic checks can be turned off in **Options → About**.
 
 ### From source
 
@@ -88,7 +95,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#building-from-source).
 
 ## Requirements
 
-- **Linux, x86_64** - Ubuntu 22.04 or newer, Debian 12+, Fedora, Arch, SteamOS and others with WebKitGTK 4.1.
+- **Linux, x86_64** - Ubuntu 22.04 or newer, Debian 12+, Fedora, openSUSE Tumbleweed, Arch, SteamOS and others with WebKitGTK 4.1.
 - **A Philips Hue Bridge** on the same network. Light sync needs a **Hue Bridge v2** and color lights.
 - **System tray** - works out of the box on KDE, Cinnamon, XFCE and Ubuntu's GNOME. On plain GNOME, install the [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/).
 - **Music sync** - PulseAudio, or PipeWire with `pipewire-pulse` (the default on current desktops).
