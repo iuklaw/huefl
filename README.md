@@ -2,7 +2,7 @@
   <img src="src-tauri/icons/128x128@2x.png" width="112" alt="HueFL logo: a light bulb in a cyan-to-amber gradient">
 </p>
 
-<h1 align="center">HueFL - Philips Hue for Linux</h1>
+<h1 align="center">HueFL - light control and sync for Hue on Linux</h1>
 
 [![Latest release](https://img.shields.io/github/v/release/iuklaw/huefl?sort=semver&label=release)](https://github.com/iuklaw/huefl/releases/latest)
 [![Release date](https://img.shields.io/github/release-date/iuklaw/huefl?label=released)](https://github.com/iuklaw/huefl/releases/latest)
@@ -10,7 +10,7 @@
 ![Platform: Linux x86_64](https://img.shields.io/badge/platform-Linux%20x86__64-informational)
 [![Website](https://img.shields.io/badge/website-huefl.iuklaw.com-blue)](https://huefl.iuklaw.com/)
 
-Control your Philips Hue lights and sync them with your music and your screen. HueFL talks to the Hue Bridge directly on your local network.
+Control your Hue lights and sync them with your music and your screen. HueFL talks to the Hue Bridge directly on your local network.
 
 Website: **[huefl.iuklaw.com](https://huefl.iuklaw.com/)**
 

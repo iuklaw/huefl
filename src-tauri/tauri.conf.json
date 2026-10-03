@@ -45,7 +45,7 @@
       }
     },
     "category": "Utility",
-    "shortDescription": "Philips Hue for Linux",
+    "shortDescription": "Unofficial light control and sync for Philips Hue",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

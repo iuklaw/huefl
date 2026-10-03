@@ -183,7 +183,7 @@
 
   "about.description": "Control Philips Hue lights from the system tray.",
   "about.version": "Version {version}",
-  "about.subtitle": "Hue for Linux",
+  "about.subtitle": "Unofficial app for Philips Hue",
 
   "nav.lights": "Lights",
   "nav.sync": "Sync",
