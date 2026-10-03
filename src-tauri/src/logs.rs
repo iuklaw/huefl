@@ -1,4 +1,4 @@
-// Application log: recent actions and events, for the user (Options → Logs)
+// Application log: recent actions and events, for the user (Options -> Logs)
 // and for debugging.
 //
 // Rust owns the log rather than the webview: JS is suspended while the window

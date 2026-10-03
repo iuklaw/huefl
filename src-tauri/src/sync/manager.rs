@@ -415,7 +415,7 @@ async fn watch_area(app: AppHandle, access: BridgeAccess, area_id: String, dropp
     }
 }
 
-/// The stream thread: connect, then render → encode → send at 50 Hz until
+/// The stream thread: connect, then render -> encode -> send at 50 Hz until
 /// told to stop. A stream the bridge dropped is reconnected. Returns the
 /// number of packets sent.
 fn stream_loop(

@@ -54,7 +54,7 @@ pub fn migrate_dir(old: &Path, new: &Path) -> io::Result<bool> {
     Ok(true)
 }
 
-/// Log files carry the app's name too: hue-tray.log(.1) → huefl.log(.1).
+/// Log files carry the app's name too: hue-tray.log(.1) -> huefl.log(.1).
 fn rename_logs(dir: &Path) -> io::Result<()> {
     for suffix in ["", ".1"] {
         let old = dir.join(format!("{LEGACY_LOG}{suffix}"));

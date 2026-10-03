@@ -350,7 +350,7 @@ pub fn parse_hex(hex: &str) -> Option<Rgb> {
     Some([channel(0)?, channel(2)?, channel(4)?])
 }
 
-/// Linear 0..1 → an sRGB byte, for what the UI shows.
+/// Linear 0..1 -> an sRGB byte, for what the UI shows.
 pub fn linear_to_srgb8(v: f32) -> u8 {
     let v = v.clamp(0.0, 1.0);
     let s = if v <= 0.003_130_8 { 12.92 * v } else { 1.055 * v.powf(1.0 / 2.4) - 0.055 };
@@ -411,7 +411,7 @@ mod tests {
         for _ in 0..25 {
             colors = effect.render(0.02, &channels);
         }
-        // Channel 1 is leftmost → bass → bright; channel 0 rightmost → treble → floor.
+        // Channel 1 is leftmost -> bass -> bright; channel 0 rightmost -> treble -> floor.
         assert!(brightness(colors[1]) > 0.9, "{colors:?}");
         assert!(brightness(colors[0]) < 0.1, "{colors:?}");
     }
@@ -427,7 +427,7 @@ mod tests {
         let loud = brightness(effect.render(0.02, &channels)[0]);
         *features.lock().unwrap() = Features::default();
         let after = brightness(effect.render(0.02, &channels)[0]);
-        assert!(loud > 0.95 && after < loud && after > 0.8, "{loud} → {after}");
+        assert!(loud > 0.95 && after < loud && after > 0.8, "{loud} -> {after}");
     }
 
     #[test]
@@ -444,7 +444,7 @@ mod tests {
         for _ in 0..30 {
             after = effect.render(0.02, &channels)[0];
         }
-        assert!(before[0] > 0.9 && after[1] > 0.9, "red → green: {before:?} → {after:?}");
+        assert!(before[0] > 0.9 && after[1] > 0.9, "red -> green: {before:?} -> {after:?}");
     }
 
     #[test]

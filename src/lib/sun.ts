@@ -17,7 +17,7 @@ export type SkyPosition = {
 export type MoonPhase = {
   /** Lit part of the disc, 0–1. */
   fraction: number;
-  /** 0 new → 0.25 first quarter → 0.5 full → 0.75 last quarter. */
+  /** 0 new -> 0.25 first quarter -> 0.5 full -> 0.75 last quarter. */
   phase: number;
 };
 

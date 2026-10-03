@@ -1,6 +1,6 @@
 // "Version X is available": the release notes, then download & install with
 // progress, then restart into it. Opened from the title bar's badge and from
-// Options → About; mounted once in App.
+// Options -> About; mounted once in App.
 
 import { useSyncExternalStore } from "react";
 import { Download, RotateCw } from "lucide-react";

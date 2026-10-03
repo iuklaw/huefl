@@ -4,8 +4,8 @@
 //    average colors (GRID_COLS × GRID_ROWS), sampling a few pixels per cell -
 //    cheap even at 4K, and the rest works on a few hundred cells.
 // 2. Each light looks at the part of the screen matching its place in the
-//    sync area: x (-1 left … 1 right) → horizontal, height z (-1 floor …
-//    1 ceiling) → vertical. Cells are weighted by a Gaussian around that
+//    sync area: x (-1 left … 1 right) -> horizontal, height z (-1 floor …
+//    1 ceiling) -> vertical. Cells are weighted by a Gaussian around that
 //    point, so neighbours blend smoothly instead of switching at hard edges.
 // 3. Near-black cells (letterbox bars, dark UI chrome) count for little,
 //    so a film's bars don't pull every light toward black.
@@ -214,16 +214,16 @@ mod tests {
     fn left_light_takes_the_left_color() {
         let grid = grid_from_bgrx(&frame(|x, _| if x < W / 2 { (255, 0, 0) } else { (0, 0, 255) }), W, H, W * 4);
         let colors = zone_colors(&grid, &[light(-0.8, 0.0), light(0.8, 0.0)], ZoneStyle::default());
-        assert_eq!(dominant(colors[0]), 0, "left → red: {colors:?}");
-        assert_eq!(dominant(colors[1]), 2, "right → blue: {colors:?}");
+        assert_eq!(dominant(colors[0]), 0, "left -> red: {colors:?}");
+        assert_eq!(dominant(colors[1]), 2, "right -> blue: {colors:?}");
     }
 
     #[test]
     fn height_picks_top_or_bottom() {
         let grid = grid_from_bgrx(&frame(|_, y| if y < H / 2 { (0, 255, 0) } else { (255, 0, 0) }), W, H, W * 4);
         let colors = zone_colors(&grid, &[light(0.0, 0.9), light(0.0, -0.9)], ZoneStyle::default());
-        assert_eq!(dominant(colors[0]), 1, "high light → top (green): {colors:?}");
-        assert_eq!(dominant(colors[1]), 0, "low light → bottom (red): {colors:?}");
+        assert_eq!(dominant(colors[0]), 1, "high light -> top (green): {colors:?}");
+        assert_eq!(dominant(colors[1]), 0, "low light -> bottom (red): {colors:?}");
     }
 
     #[test]
@@ -268,8 +268,8 @@ mod tests {
         let [subtle, extreme] = [0, 3].map(|i| zone_colors(&grid, &[light(0.0, 0.0)], ZoneStyle::for_intensity(i))[0]);
         let max = |c: Rgb| c.iter().cloned().fold(0.0f32, f32::max);
         let min = |c: Rgb| c.iter().cloned().fold(1.0f32, f32::min);
-        assert!(max(extreme) > max(subtle) * 1.5, "{subtle:?} → {extreme:?}");
-        assert!(min(extreme) / max(extreme) < min(subtle) / max(subtle), "{subtle:?} → {extreme:?}");
+        assert!(max(extreme) > max(subtle) * 1.5, "{subtle:?} -> {extreme:?}");
+        assert!(min(extreme) / max(extreme) < min(subtle) / max(subtle), "{subtle:?} -> {extreme:?}");
     }
 
     #[test]

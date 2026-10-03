@@ -71,7 +71,7 @@ export function describeTrigger(trigger: Trigger): string {
 }
 
 export function describe(automation: Automation): string {
-  return `${describeTrigger(automation.trigger)} → ${describeAction(automation.action)}`;
+  return `${describeTrigger(automation.trigger)} -> ${describeAction(automation.action)}`;
 }
 
 /** Re-renders every `interval` ms, for countdowns and the sun. */

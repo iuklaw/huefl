@@ -87,7 +87,7 @@ sudo zypper install ./HueFL-*.x86_64.rpm
 
 Every version is published on the [Releases page](https://github.com/iuklaw/huefl/releases) with its changes, an AppImage, a .deb and an .rpm. Releases are built by [GitHub Actions](https://github.com/iuklaw/huefl/actions/workflows/release.yml) from the tagged source and signed.
 
-HueFL checks for new versions itself (shortly after start and every few hours). When one is out, its number appears next to the app's name in the title bar - click it to see what's new, download and install it, and restart. AppImages update in place; the .deb and .rpm ask for your password. Automatic checks can be turned off in **Options → About**.
+HueFL checks for new versions itself (shortly after start and every few hours). When one is out, its number appears next to the app's name in the title bar - click it to see what's new, download and install it, and restart. AppImages update in place; the .deb and .rpm ask for your password. Automatic checks can be turned off in **Options -> About**.
 
 ### From source
 
@@ -144,7 +144,7 @@ Use the clock button on a room card for a quick timer, or open **Schedules** for
 
 <img src="docs/screenshots/options-sync-light.png" width="260" align="right" alt="Options, Sync tab: restore lights after sync, photosensitivity safe mode">
 
-Settings are changed in the app (gear icon → **Options**): closing to the tray, theme, bridge, lights, sync, logs and updates. Files live in the usual places:
+Settings are changed in the app (gear icon -> **Options**): closing to the tray, theme, bridge, lights, sync, logs and updates. Files live in the usual places:
 
 | What | Where |
 |---|---|
@@ -182,11 +182,11 @@ Check **Sound from** in the Sync tab: *System audio* listens to what your speake
 
 ### Screen sync is unavailable or black
 
-The warning icon next to **Mode** says why. On Wayland, a screen-sharing portal must be installed; on X11 it works out of the box. If the preview stays black, look for `sync.screen_*` entries in **Options → Logs**.
+The warning icon next to **Mode** says why. On Wayland, a screen-sharing portal must be installed; on X11 it works out of the box. If the preview stays black, look for `sync.screen_*` entries in **Options -> Logs**.
 
 ### Something else
 
-Use **Options → About → Report a bug**, or [open an issue](https://github.com/iuklaw/huefl/issues). The log (**Options → Logs**) helps a lot; bridge keys are removed from it automatically.
+Use **Options -> About -> Report a bug**, or [open an issue](https://github.com/iuklaw/huefl/issues). The log (**Options -> Logs**) helps a lot; bridge keys are removed from it automatically.
 
 ## Privacy
 
@@ -194,7 +194,7 @@ HueFL talks to your bridge over your local network only. It contacts the interne
 
 - Philips' bridge discovery service, if no bridge is found locally;
 - [colors.zoodinkers.com](https://colors.zoodinkers.com) once a day for the *Color of the day* (only the date is sent);
-- GitHub, to check for new versions (can be turned off in **Options → About**).
+- GitHub, to check for new versions (can be turned off in **Options -> About**).
 
 ## Contributing
 

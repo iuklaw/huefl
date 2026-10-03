@@ -1,7 +1,7 @@
 // The DTLS 1.2 connection that carries the stream (UDP port 2100).
 //
 // The bridge only speaks PSK: identity = the application key, key = the
-// `clientkey` handed out at pairing (32 hex chars → 16 bytes), cipher
+// `clientkey` handed out at pairing (32 hex chars -> 16 bytes), cipher
 // TLS_PSK_WITH_AES_128_GCM_SHA256. There is no certificate to verify - the
 // PSK itself authenticates both sides.
 //

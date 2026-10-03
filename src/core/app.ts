@@ -406,7 +406,7 @@ async function applyLightCommand(command: LightCommand, { silent = false } = {})
 // event comes when nothing actually changed.
 
 const SYNC_EVENT_TIMEOUT_MS = 2_500;
-/** Rooms busy on the previous recompute - to detect the busy → idle edge. */
+/** Rooms busy on the previous recompute - to detect the busy -> idle edge. */
 const busyRooms = new Set<string>();
 /** roomId -> time we stop waiting for its grouped_light event */
 const awaitingEvent = new Map<string, number>();

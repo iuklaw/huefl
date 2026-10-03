@@ -22,7 +22,7 @@ const FOCUS = [1.2, 1.0, 0.8, 0.6];
 const SCREEN_HEIGHT = 112;
 const MAX_WIDTH = 320;
 
-/** Where a light looks: x → left…right, height z → top…bottom (zones::watch_point). */
+/** Where a light looks: x -> left…right, height z -> top…bottom (zones::watch_point). */
 function watchPoint({ x, z }: Position3): { u: number; v: number } {
   const clamp = (n: number) => Math.min(1, Math.max(0, n));
   return { u: clamp((x + 1) / 2), v: clamp(1 - (z + 1) / 2) };

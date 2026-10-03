@@ -1,5 +1,5 @@
 // A thin translucent bar along the bottom of the window: product name on the
-// left, version on the right (the same values as Options → About). It overlays
+// left, version on the right (the same values as Options -> About). It overlays
 // the views, so the room glow shows through; the views leave room for it.
 
 import { useAppVersion } from "@/core/useAppVersion";

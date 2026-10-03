@@ -52,7 +52,7 @@ pub async fn color_of_the_day(date: String) -> Result<DailyColor, String> {
     Ok(color)
 }
 
-/// `{"date":"2026-10-01","hex":"#545575"}` → a checked, lower-case color.
+/// `{"date":"2026-10-01","hex":"#545575"}` -> a checked, lower-case color.
 fn parse(text: &str) -> Result<DailyColor, String> {
     let color: DailyColor = serde_json::from_str(text).map_err(|e| format!("color of the day: {e}"))?;
     let hex = color.hex.to_ascii_lowercase();

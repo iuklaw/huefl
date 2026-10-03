@@ -125,7 +125,7 @@ function clampMirek(mirek: number, light: LightView): number {
 // get back to the look (here, via the Philips app, after a restart) and it is
 // again. A preset is current when its commands would change nothing.
 
-/** Tolerances for bridge rounding (brightness 60 → 59.84, xy re-gamuted). */
+/** Tolerances for bridge rounding (brightness 60 -> 59.84, xy re-gamuted). */
 export const MATCH_XY = 0.01;
 export const MATCH_BRIGHTNESS = 2;
 export const MATCH_MIREK = 3;

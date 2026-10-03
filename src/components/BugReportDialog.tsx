@@ -1,4 +1,4 @@
-// "Report a bug" (Options → About): a description and -
+// "Report a bug" (Options -> About): a description and -
 // if the user agrees - the app's log and facts about the system. The exact
 // report is shown before it leaves. Send delivers it to the report server set
 // when building (src-tauri/src/report.rs); a build without one does nothing.

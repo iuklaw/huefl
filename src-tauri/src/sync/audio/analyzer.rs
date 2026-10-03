@@ -2,13 +2,13 @@
 // bands, and beats. Pure - fed with sample blocks, no devices - so it is
 // tested with synthetic signals.
 //
-//   FFT (1024 samples, Hann window, 48 kHz → ~47 Hz per bin)
-//   → band amplitudes: bass 20–250 Hz, mid 250–4000 Hz, treble 4–16 kHz
-//   → automatic gain: each value relative to its own recent peak, so quiet and
+//   FFT (1024 samples, Hann window, 48 kHz -> ~47 Hz per bin)
+//   -> band amplitudes: bass 20–250 Hz, mid 250–4000 Hz, treble 4–16 kHz
+//   -> automatic gain: each value relative to its own recent peak, so quiet and
 //     loud music both use the full range
-//   → beat: bass spectral flux above an adaptive threshold (mean + 1.5σ of the
+//   -> beat: bass spectral flux above an adaptive threshold (mean + 1.5σ of the
 //     last second), at most one every 250 ms (240 BPM)
-//   → spectrum: 24 log-spaced bars for the UI's visualizer, from the same FFT
+//   -> spectrum: 24 log-spaced bars for the UI's visualizer, from the same FFT
 
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -232,7 +232,7 @@ mod tests {
         for (hz, band) in [(60.0, 0), (1_000.0, 1), (8_000.0, 2)] {
             let mut analyzer = Analyzer::default();
             let features = run(&mut analyzer, &sine(hz, 0.5, 1.0));
-            assert_eq!(loudest_band(&features), band, "{hz} Hz → {features:?}");
+            assert_eq!(loudest_band(&features), band, "{hz} Hz -> {features:?}");
             assert!(features.energy > 0.5, "{features:?}");
         }
     }
@@ -275,7 +275,7 @@ mod tests {
             let features = run(&mut Analyzer::default(), &sine(hz, 0.5, 1.0));
             let bar = loudest_bar(&features);
             let (lo, hi) = spectrum_band(bar);
-            assert!(lo <= hz * 1.1 && hz <= hi * 1.1, "{hz} Hz → bar {bar} ({lo:.0}–{hi:.0} Hz)");
+            assert!(lo <= hz * 1.1 && hz <= hi * 1.1, "{hz} Hz -> bar {bar} ({lo:.0}–{hi:.0} Hz)");
             assert!(features.spectrum.iter().all(|v| (0.0..=1.0).contains(v)), "{:?}", features.spectrum);
             assert!(features.spectrum[bar] > 0.9, "{:?}", features.spectrum);
         }
@@ -288,7 +288,7 @@ mod tests {
         let bar = loudest_bar(&loud);
         // Quiet but not silent: the bar drops by at most FALL per block.
         let after = analyzer.process(&vec![1e-3; BLOCK]);
-        assert!(after.spectrum[bar] >= loud.spectrum[bar] - SPECTRUM_FALL - 1e-6, "{} → {}", loud.spectrum[bar], after.spectrum[bar]);
+        assert!(after.spectrum[bar] >= loud.spectrum[bar] - SPECTRUM_FALL - 1e-6, "{} -> {}", loud.spectrum[bar], after.spectrum[bar]);
     }
 
     #[test]

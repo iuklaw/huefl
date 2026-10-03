@@ -50,7 +50,7 @@ async function discoverViaMdns(): Promise<BridgeCandidate[]> {
 }
 
 /**
- * `avahi-browse -rpt` output → one candidate per bridge. A bridge is listed
+ * `avahi-browse -rpt` output -> one candidate per bridge. A bridge is listed
  * once per interface and mDNS transport; only IPv4 addresses are kept (the
  * sync stream is IPv4-only, and a link-local IPv6 address comes without its
  * interface).
@@ -155,7 +155,7 @@ async function hueFetch(
   if (res.fingerprint) pin.seen = res.fingerprint;
   if (res.status >= 400) {
     // The body is what explains the failure (often an HTML error page).
-    log.warn("bridge", "bridge.http_error", `${method} ${path} → HTTP ${res.status}`, {
+    log.warn("bridge", "bridge.http_error", `${method} ${path} -> HTTP ${res.status}`, {
       status: res.status,
       body: res.body.slice(0, 500),
     });

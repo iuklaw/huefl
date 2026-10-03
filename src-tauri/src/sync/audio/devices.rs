@@ -42,7 +42,7 @@ pub enum AudioProblem {
     NoOutput,
 }
 
-/// "Speakers" + "Family 17h … Stereo" → "Speakers – Family 17h … Stereo".
+/// "Speakers" + "Family 17h … Stereo" -> "Speakers – Family 17h … Stereo".
 pub fn device_label(port: Option<&str>, description: Option<&str>) -> Option<String> {
     match (port.filter(|p| !p.is_empty()), description.filter(|d| !d.is_empty())) {
         (Some(port), Some(description)) => Some(format!("{port} – {description}")),
@@ -68,7 +68,7 @@ pub fn capture_device(microphone: bool, devices: &AudioDevices) -> Result<Option
 }
 
 /// Whether capture must reopen: the default device changed under us (e.g.
-/// speakers → headset). An unknown current device is not a reason.
+/// speakers -> headset). An unknown current device is not a reason.
 pub fn should_reopen(opened_on: Option<&str>, current: Option<&str>) -> bool {
     current.is_some() && current != opened_on
 }

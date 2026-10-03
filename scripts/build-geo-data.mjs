@@ -1,5 +1,5 @@
 // Generates the offline geo data for the schedule's location picker:
-//   src/lib/zones.json      IANA time zone → country codes + coordinates (zone1970.tab)
+//   src/lib/zones.json      IANA time zone -> country codes + coordinates (zone1970.tab)
 //   src/lib/world-land.ts   land outlines as one SVG path, equirectangular,
 //                           x = lon + 180 (0…360), y = 90 − lat (0…180)
 // Run once after changing the sources: node scripts/build-geo-data.mjs

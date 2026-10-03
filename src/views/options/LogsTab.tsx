@@ -1,4 +1,4 @@
-// Options → Logs: recent actions and events, newest first. Meant for the user
+// Options -> Logs: recent actions and events, newest first. Meant for the user
 // ("what just happened?") and for bug reports ("Copy" gives a ready-to-paste
 // text with app version and system info).
 

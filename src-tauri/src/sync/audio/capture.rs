@@ -5,7 +5,7 @@
 // name the server reports (see devices::capture_device) - and "Microphone"
 // the default input. Works on PulseAudio and PipeWire
 // (pipewire-pulse). Kept working through the things that happen mid-sync:
-//   - the user switches output (speakers → headset): the monitor name is
+//   - the user switches output (speakers -> headset): the monitor name is
 //     resolved when a stream opens, so the thread checks the default device
 //     every 2 s and reopens on the new one;
 //   - the sound server restarts or goes away: features drop to silence (lights

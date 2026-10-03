@@ -1,7 +1,7 @@
 // New versions, UI side. Rust does the checking, downloading and installing
 // (src-tauri/src/updates.rs, the official updater plugin with signed
 // releases); this keeps the state for the title bar's badge, the update
-// dialog and Options → About, and checks now and then - unless updates come
+// dialog and Options -> About, and checks now and then - unless updates come
 // from Flathub or a package manager (`update_channel`).
 
 import { useSyncExternalStore } from "react";

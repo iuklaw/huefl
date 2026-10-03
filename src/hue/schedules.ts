@@ -166,7 +166,7 @@ type V1Rule = {
   status?: string;
 };
 
-/** Ours from GET /schedules (id → schedule); anything unreadable is skipped. */
+/** Ours from GET /schedules (id -> schedule); anything unreadable is skipped. */
 export function parseSchedules(all: Record<string, V1Schedule>): Automation[] {
   return Object.entries(all).flatMap(([id, s]) => {
     const name = ownName(s.name);

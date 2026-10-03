@@ -290,7 +290,7 @@ function whyNot(light: LightView): string {
 
 /**
  * Top view: the screen along the top edge, the viewer at the bottom. Hue
- * positions are relative (-1..1), not meters - x left→right, y from where you
+ * positions are relative (-1..1), not meters - x left->right, y from where you
  * sit (-1) to the screen (1); height (z) stays as is. So the scale is
  * descriptive: a grid, labelled edges, and a plain-words readout.
  */
@@ -426,7 +426,7 @@ function depthOf(y: number): "screen" | "halfway" | "near_you" {
 }
 
 /**
- * Lights without a place yet get spread evenly left→right - along the back of
+ * Lights without a place yet get spread evenly left->right - along the back of
  * the screen for screen areas, across the middle for music.
  */
 function spreadIfUnplaced(

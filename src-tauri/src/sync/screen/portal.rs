@@ -3,9 +3,9 @@
 // system dialog), then the picture arrives as a PipeWire video stream. The
 // same way OBS, browsers and Discord do it; works on KDE, GNOME and wlroots.
 //
-//   portal: CreateSession → SelectSources (one monitor, no cursor,
-//           persistent) → Start (the dialog) → OpenPipeWireRemote (an fd)
-//   thread: PipeWire main loop on that fd → a video stream from the node →
+//   portal: CreateSession -> SelectSources (one monitor, no cursor,
+//           persistent) -> Start (the dialog) -> OpenPipeWireRemote (an fd)
+//   thread: PipeWire main loop on that fd -> a video stream from the node ->
 //           each frame averaged into zones::Grid, like X11 frames
 //
 // The portal hands out a restore token: next time the same monitor is shared
@@ -42,7 +42,7 @@ const MAX_FPS: u32 = 25;
 /// How long frames may stay unreadable after asking for shared memory.
 const UNREADABLE_FOR: Duration = Duration::from_secs(3);
 /// Ends the messages for capture that can't work - only a report helps.
-const REPORT: &str = "Please report it with the log (Options → About → Report a bug).";
+const REPORT: &str = "Please report it with the log (Options -> About -> Report a bug).";
 
 /// Why opening failed: the user said no, or something else.
 #[derive(Debug)]

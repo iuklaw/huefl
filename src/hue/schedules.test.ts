@@ -161,10 +161,10 @@ describe("nextRun", () => {
   const warsawSummer = () => 120;
 
   it("skips to the next chosen weekday", () => {
-    // Tue 2026-09-29 12:00 UTC; Mon–Fri 07:30 → Wed 07:30.
+    // Tue 2026-09-29 12:00 UTC; Mon–Fri 07:30 -> Wed 07:30.
     const now = Date.UTC(2026, 8, 29, 12, 0);
     expect(nextRun({ kind: "time", hour: 7, minute: 30, days: WEEKDAYS_MASK }, now, utc)).toBe(Date.UTC(2026, 8, 30, 7, 30));
-    // Sunday only → Sun 2026-10-04.
+    // Sunday only -> Sun 2026-10-04.
     expect(nextRun({ kind: "time", hour: 7, minute: 30, days: 1 }, now, utc)).toBe(Date.UTC(2026, 9, 4, 7, 30));
   });
 

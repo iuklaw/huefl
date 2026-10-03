@@ -209,7 +209,7 @@ mod live {
         assert!(readiness::is_ready(&checks));
     }
 
-    /// Live: the whole screen path on real lights for 5 s (screen → effect →
+    /// Live: the whole screen path on real lights for 5 s (screen -> effect ->
     /// DTLS), then the lights are restored. Prints packets/s and CPU time.
     /// Run: `cargo test --lib live_stream_screen -- --ignored --nocapture`
     #[cfg(feature = "sync-screen")]

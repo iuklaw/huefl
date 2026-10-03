@@ -21,7 +21,7 @@ Plus [Rust](https://rustup.rs) (stable) and Node.js 20+ with npm.
 
 `libpulse-dev` is for music sync and `libpipewire-0.3-dev` + `libclang-dev` for screen sync on Wayland. They're Cargo features (`sync-audio`, `sync-screen-wayland`, on by default); `--no-default-features` builds without them.
 
-Packaging HueFL for a distribution, the AUR or Flatpak? Leave out the `self-update` feature (on by default): the app then doesn't look for new versions and says in **Options → About** that updates come from the package manager. A Flatpak never updates itself, whatever it was built with.
+Packaging HueFL for a distribution, the AUR or Flatpak? Leave out the `self-update` feature (on by default): the app then doesn't look for new versions and says in **Options -> About** that updates come from the package manager. A Flatpak never updates itself, whatever it was built with.
 
 ### Run and build
 
@@ -50,7 +50,7 @@ cargo test --lib live_overview -- --ignored --nocapture       # sync checklist f
 cargo test --lib live_capture -- --ignored --nocapture        # 2 s of system audio
 cargo test --lib live_screen -- --ignored --nocapture         # 1 s of the screen (X11)
 cargo test --lib live_portal -- --ignored --nocapture         # screen via the portal (Wayland)
-cargo test --lib live_stream_screen -- --ignored --nocapture  # 5 s screen → lights
+cargo test --lib live_stream_screen -- --ignored --nocapture  # 5 s screen -> lights
 ```
 
 ## How it's built
@@ -86,4 +86,4 @@ Texts are in `src/locales/en.json`. To add a language, create `src/locales/<code
 
 ### Logs
 
-`~/.local/state/huefl/huefl.log` (JSON lines, rotated at 1 MB), shown in **Options → Logs**. Never log secrets: the TypeScript logger redacts key fields, and bug reports strip the bridge keys by value.
+`~/.local/state/huefl/huefl.log` (JSON lines, rotated at 1 MB), shown in **Options -> Logs**. Never log secrets: the TypeScript logger redacts key fields, and bug reports strip the bridge keys by value.

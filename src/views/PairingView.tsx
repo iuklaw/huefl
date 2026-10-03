@@ -1,6 +1,6 @@
 // Pairing in two steps: find the bridge (network search or manual IP), then
 // press its link button and pair. Used on first start and from
-// Options → Bridge ("Pair a different bridge").
+// Options -> Bridge ("Pair a different bridge").
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ChevronRight, Radar, Router } from "lucide-react";

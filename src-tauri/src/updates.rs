@@ -7,7 +7,7 @@
 //   .deb/.rpm installed with pkexec (the system's password prompt; the plugin
 //             falls back to zenity / kdialog).
 // The signature is checked against the public key built into the app
-// (tauri.conf.json → plugins.updater.pubkey): a file that wasn't signed with
+// (tauri.conf.json -> plugins.updater.pubkey): a file that wasn't signed with
 // the release key is refused, wherever it came from.
 //
 // Off while the key or the address isn't set yet, and in development builds.

@@ -172,7 +172,7 @@ function MoonGlyph({ cx, cy, fraction, waxing }: { cx: number; cy: number; fract
   const r = MOON_R;
   const rx = r * Math.abs(1 - 2 * fraction);
   const gibbous = fraction > 0.5;
-  // SVG's y points down, so sweep 1 = clockwise on screen. The limb runs top →
+  // SVG's y points down, so sweep 1 = clockwise on screen. The limb runs top ->
   // bottom along the lit edge; the terminator comes back up, bulging toward
   // the lit edge for a crescent and away from it past half.
   const limbSweep = waxing ? 1 : 0;

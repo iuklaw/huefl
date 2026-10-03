@@ -108,7 +108,7 @@
   "close.to_tray": "Minimize to tray",
   "close.quit": "Quit",
   "close.remember": "Don't ask again",
-  "close.remember_hint": "You can change this in Options → General.",
+  "close.remember_hint": "You can change this in Options -> General.",
 
   "options.title": "Options",
   "options.back": "Back",
