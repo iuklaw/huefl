@@ -8,8 +8,11 @@
 [![Release date](https://img.shields.io/github/release-date/iuklaw/huefl?label=released)](https://github.com/iuklaw/huefl/releases/latest)
 [![License: MIT](https://img.shields.io/github/license/iuklaw/huefl)](LICENSE)
 ![Platform: Linux x86_64](https://img.shields.io/badge/platform-Linux%20x86__64-informational)
+[![Website](https://img.shields.io/badge/website-huefl.iuklaw.com-blue)](https://huefl.iuklaw.com/)
 
 Control your Philips Hue lights and sync them with your music and your screen. HueFL talks to the Hue Bridge directly on your local network.
+
+Website: **[huefl.iuklaw.com](https://huefl.iuklaw.com/)**
 
 > [!NOTE]
 > HueFL is an **unofficial**, independent app. It is not made, endorsed or supported by Signify or Philips Hue.
@@ -18,7 +21,7 @@ Built with [Tauri 2](https://tauri.app) (Rust + the system webview) and React.
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/lights.png" width="260" alt="Lights tab: a room card with brightness, saved color presets, the color of the day and popular palettes"><br><sub>Rooms, presets and palettes</sub></td>
+    <td align="center"><img src="docs/screenshots/lights.png" width="260" alt="Lights tab: a room card with its next schedule, brightness for each light and saved color presets"><br><sub>Rooms, lights and presets</sub></td>
     <td align="center"><img src="docs/screenshots/sync-music.png" width="260" alt="Sync tab in Music mode with a live spectrum of the playing audio"><br><sub>Music sync</sub></td>
     <td align="center"><img src="docs/screenshots/sync-screen.png" width="260" alt="Sync tab in Screen mode with a monitor preview showing where each light looks"><br><sub>Screen sync</sub></td>
   </tr>
@@ -29,7 +32,7 @@ Built with [Tauri 2](https://tauri.app) (Rust + the system webview) and React.
 <br>
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/lights-light.png" width="260" alt="Lights tab in the light theme: a room card with its next schedule, presets and palettes"><br><sub>Rooms, presets and palettes</sub></td>
+    <td align="center"><img src="docs/screenshots/lights-light.png" width="260" alt="Lights tab in the light theme: a room card with its next schedule, brightness for each light and saved color presets"><br><sub>Rooms, lights and presets</sub></td>
     <td align="center"><img src="docs/screenshots/sync-music-light.png" width="260" alt="Music sync in the light theme, with the live spectrum"><br><sub>Music sync</sub></td>
     <td align="center"><img src="docs/screenshots/sync-ambient-light.png" width="260" alt="Ambient sync in the light theme, with the lights' current colors"><br><sub>Ambient sync</sub></td>
   </tr>
