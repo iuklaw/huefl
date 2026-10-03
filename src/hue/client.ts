@@ -37,39 +37,18 @@ export class PairTimedOut extends Error {
 // --- Discovery ---------------------------------------------------------------
 
 /**
- * mDNS via avahi-browse. The preferred method on Linux: it never leaves the
- * LAN. Needs a running avahi-daemon (present on virtually every desktop).
+ * mDNS, done by the app itself (src-tauri/src/hue.rs): the preferred method,
+ * it never leaves the LAN. Rust already merges a bridge's answers into one.
  */
 async function discoverViaMdns(): Promise<BridgeCandidate[]> {
   try {
-    return parseAvahi(await invoke<string>("avahi_browse"));
-  } catch {
-    // No avahi-browse - not a problem, there is a fallback.
+    const found = await invoke<Array<{ id: string; ip: string }>>("discover_mdns");
+    return found.map((bridge) => ({ ...bridge, source: "mdns" }));
+  } catch (error) {
+    // Not a dead end: cloud discovery and a typed-in IP remain.
+    log.warn("pairing", "discover.mdns_failed", `mDNS search failed: ${String(error)}`);
     return [];
   }
-}
-
-/**
- * `avahi-browse -rpt` output -> one candidate per bridge. A bridge is listed
- * once per interface and mDNS transport; only IPv4 addresses are kept (the
- * sync stream is IPv4-only, and a link-local IPv6 address comes without its
- * interface).
- */
-export function parseAvahi(out: string): BridgeCandidate[] {
-  const found = new Map<string, BridgeCandidate>();
-  for (const line of out.split("\n")) {
-    // Resolved records start with "=" and have ";"-separated fields:
-    // =;iface;transport;name;type;domain;host;address;port;txt
-    // (the transport says how the record came, not the address's family)
-    if (!line.startsWith("=")) continue;
-    const parts = line.split(";");
-    const ip = parts[7];
-    if (!ip || ip.includes(":")) continue;
-    const idMatch = (parts[9] ?? "").match(/bridgeid=([0-9a-fA-F]+)/);
-    const id = (idMatch?.[1] ?? ip).toLowerCase();
-    if (!found.has(id)) found.set(id, { id, ip, source: "mdns" });
-  }
-  return [...found.values()];
 }
 
 /**

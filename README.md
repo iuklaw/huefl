@@ -174,7 +174,7 @@ GNOME needs the [AppIndicator extension](https://extensions.gnome.org/extension/
 
 ### The bridge isn't found
 
-Make sure the computer and the bridge are on the same network (not a guest Wi-Fi, no VPN in between). HueFL searches with mDNS (`avahi-daemon`) and falls back to Philips' discovery service. You can also enter the bridge's IP address by hand.
+Make sure the computer and the bridge are on the same network (not a guest Wi-Fi, no VPN in between). HueFL searches the local network (mDNS - a firewall must let UDP port 5353 through, which the default firewalld zone on Fedora and openSUSE does) and falls back to Philips' discovery service. You can also enter the bridge's IP address by hand.
 
 ### Music sync doesn't react
 

@@ -9,9 +9,9 @@
 // The fingerprint uses the Bun/Node format (`AA:BB:...`), so a config.json
 // saved by the Electrobun version keeps working without re-pairing.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::error::Error as StdError;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -323,21 +323,66 @@ pub fn hue_stream_close(state: State<'_, HueState>, id: u32) {
 
 // --- Discovery ---------------------------------------------------------------
 
-/// Raw output of `avahi-browse -rpt _hue._tcp`; TS does the parsing.
-/// Empty when avahi is missing - TS then falls back to cloud discovery.
-#[tauri::command]
-pub async fn avahi_browse() -> String {
-    let output = tokio::process::Command::new("avahi-browse")
-        .args(["-rpt", "_hue._tcp"])
-        .stdin(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .kill_on_drop(true)
-        .output();
+const MDNS_SERVICE: &str = "_hue._tcp.local.";
+/// How long to listen for bridges at most...
+const MDNS_WAIT: Duration = Duration::from_secs(3);
+/// ...and after the first one answered (others on the network answer together).
+const MDNS_AFTER_FIRST: Duration = Duration::from_secs(1);
 
-    match tokio::time::timeout(Duration::from_secs(3), output).await {
-        Ok(Ok(out)) => String::from_utf8_lossy(&out.stdout).into_owned(),
-        _ => String::new(),
+/// A bridge that answered on the local network.
+#[derive(Debug, PartialEq, Serialize)]
+pub struct FoundBridge {
+    id: String,
+    ip: String,
+}
+
+/// Bridges on the local network, through mDNS done in-process: no avahi
+/// daemon or tools needed (a Flatpak has neither). IPv4 only - the sync
+/// stream is IPv4-only, and a link-local IPv6 address needs its interface.
+#[tauri::command]
+pub async fn discover_mdns() -> Result<Vec<FoundBridge>, String> {
+    tauri::async_runtime::spawn_blocking(browse_mdns).await.map_err(|e| e.to_string())?
+}
+
+fn browse_mdns() -> Result<Vec<FoundBridge>, String> {
+    use mdns_sd::{IfKind, ServiceDaemon, ServiceEvent};
+
+    let daemon = ServiceDaemon::new().map_err(|e| format!("mDNS: {e}"))?;
+    for kind in [IfKind::IPv6, IfKind::LoopbackV4, IfKind::LoopbackV6] {
+        let _ = daemon.disable_interface(kind);
     }
+    let events = daemon.browse(MDNS_SERVICE).map_err(|e| format!("mDNS: {e}"))?;
+
+    let started = std::time::Instant::now();
+    let mut deadline = started + MDNS_WAIT;
+    let mut found = Vec::new();
+    while let Some(left) = deadline.checked_duration_since(std::time::Instant::now()) {
+        match events.recv_timeout(left) {
+            Ok(ServiceEvent::ServiceResolved(service)) => {
+                if found.is_empty() {
+                    deadline = deadline.min(std::time::Instant::now() + MDNS_AFTER_FIRST);
+                }
+                let id = service.get_property_val_str("bridgeid").map(str::to_string);
+                found.push((id, service.get_addresses_v4().into_iter().collect()));
+            }
+            Ok(_) => {}
+            Err(_) => break, // timed out, or the daemon is gone
+        }
+    }
+    let _ = daemon.shutdown();
+    Ok(collect_bridges(found))
+}
+
+/// One entry per bridge - it answers once per interface - by its bridge ID
+/// (the IP when it gives none), with its lowest address, sorted by ID.
+fn collect_bridges(found: impl IntoIterator<Item = (Option<String>, Vec<Ipv4Addr>)>) -> Vec<FoundBridge> {
+    let mut bridges: BTreeMap<String, Ipv4Addr> = BTreeMap::new();
+    for (id, addresses) in found {
+        let Some(ip) = addresses.into_iter().min() else { continue };
+        let id = id.map(|id| id.to_lowercase()).unwrap_or_else(|| ip.to_string());
+        bridges.entry(id).and_modify(|known| *known = (*known).min(ip)).or_insert(ip);
+    }
+    bridges.into_iter().map(|(id, ip)| FoundBridge { id, ip: ip.to_string() }).collect()
 }
 
 /// Signify's cloud endpoint - CORS would block it from the webview.
@@ -360,3 +405,50 @@ pub fn device_name() -> String {
     std::env::var("USER").unwrap_or_else(|_| "linux".into())
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ip(s: &str) -> Ipv4Addr {
+        s.parse().unwrap()
+    }
+
+    #[test]
+    fn a_bridge_answering_on_several_interfaces_is_listed_once() {
+        let found = vec![
+            (Some("ECB5FAFFFEBE035E".to_string()), vec![ip("192.168.10.233")]),
+            (Some("ecb5fafffebe035e".to_string()), vec![ip("192.168.20.5"), ip("192.168.10.233")]),
+        ];
+        assert_eq!(
+            collect_bridges(found),
+            vec![FoundBridge { id: "ecb5fafffebe035e".into(), ip: "192.168.10.233".into() }]
+        );
+    }
+
+    #[test]
+    fn different_bridges_stay_apart_sorted_by_id() {
+        let found = vec![
+            (Some("bbbb".to_string()), vec![ip("192.168.1.3")]),
+            (Some("aaaa".to_string()), vec![ip("192.168.1.2")]),
+        ];
+        let ids: Vec<_> = collect_bridges(found).into_iter().map(|b| b.id).collect();
+        assert_eq!(ids, ["aaaa", "bbbb"]);
+    }
+
+    #[test]
+    fn without_a_bridge_id_the_ip_stands_in_and_no_address_means_no_entry() {
+        let found = vec![(None, vec![ip("10.0.0.7")]), (Some("cccc".to_string()), vec![])];
+        assert_eq!(collect_bridges(found), vec![FoundBridge { id: "10.0.0.7".into(), ip: "10.0.0.7".into() }]);
+    }
+
+    /// Real network: `cargo test --lib live_discover -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn live_discover() {
+        let started = std::time::Instant::now();
+        let bridges = browse_mdns().unwrap();
+        println!("{bridges:?} in {} ms", started.elapsed().as_millis());
+        assert!(!bridges.is_empty(), "no bridge answered");
+    }
+}

@@ -22,7 +22,7 @@ serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 sha2 = "0.10"
-tokio = { version = "1", features = ["sync", "macros", "time", "process"] }
+tokio = { version = "1", features = ["sync", "macros", "time"] }
 openssl = "0.10"
 rustfft = "6.4"
 libpulse-binding = { version = "2.30", optional = true }
@@ -38,6 +38,8 @@ libspa = { version = "=0.6.0", optional = true }
 libspa-sys = { version = "0.8", optional = true }
 tauri-plugin-updater = { version = "2", optional = true }
 time = { version = "0.3", features = ["formatting"] }
+# Finding the bridge on the local network (mDNS), without avahi.
+mdns-sd = "0.21"
 
 [features]
 default = ["sync-audio", "sync-screen", "sync-screen-wayland", "self-update"]

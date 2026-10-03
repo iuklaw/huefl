@@ -49,6 +49,7 @@ cd src-tauri
 cargo test --lib live_overview -- --ignored --nocapture       # sync checklist for your bridge
 cargo test --lib live_capture -- --ignored --nocapture        # 2 s of system audio
 cargo test --lib live_screen -- --ignored --nocapture         # 1 s of the screen (X11)
+cargo test --lib live_discover -- --ignored --nocapture       # bridges on your network (mDNS)
 cargo test --lib live_portal -- --ignored --nocapture         # screen via the portal (Wayland)
 cargo test --lib live_stream_screen -- --ignored --nocapture  # 5 s screen -> lights
 ```

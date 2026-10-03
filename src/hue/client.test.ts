@@ -4,29 +4,7 @@ const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/api/core", () => ({ invoke, Channel: class {} }));
 vi.mock("../core/log", () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 
-import { LINK_WAIT_MS, PairTimedOut, pairWhenPressed, parseAvahi } from "./client";
-
-describe("parseAvahi", () => {
-  it("lists a bridge once, by its IPv4 address", () => {
-    const out = [
-      "+;eno1;IPv4;Hue\\032Bridge\\032-\\032BE035E;_hue._tcp;local",
-      // Found over both transports - the IPv6 one may still carry the IPv4 address.
-      '=;eno1;IPv4;Hue\\032Bridge\\032-\\032BE035E;_hue._tcp;local;ecb5fabe035e.local;192.168.10.233;443;"modelid=BSB002" "bridgeid=ecb5fafffebe035e"',
-      '=;eno1;IPv6;Hue\\032Bridge\\032-\\032BE035E;_hue._tcp;local;ecb5fabe035e.local;192.168.10.233;443;"modelid=BSB002" "bridgeid=ecb5fafffebe035e"',
-      '=;eno1;IPv6;Hue\\032Bridge\\032-\\032BE035E;_hue._tcp;local;ecb5fabe035e.local;fe80::217:88ff:febe:35e;443;"modelid=BSB002" "bridgeid=ecb5fafffebe035e"',
-      '=;wlan0;IPv4;Hue\\032Bridge\\032-\\032BE035E;_hue._tcp;local;ecb5fabe035e.local;192.168.20.5;443;"modelid=BSB002" "bridgeid=ecb5fafffebe035e"',
-    ].join("\n");
-    expect(parseAvahi(out)).toEqual([{ id: "ecb5fafffebe035e", ip: "192.168.10.233", source: "mdns" }]);
-  });
-
-  it("keeps different bridges apart", () => {
-    const out = [
-      '=;eno1;IPv4;A;_hue._tcp;local;a.local;192.168.1.2;443;"bridgeid=AAAA"',
-      '=;eno1;IPv4;B;_hue._tcp;local;b.local;192.168.1.3;443;"bridgeid=BBBB"',
-    ].join("\n");
-    expect(parseAvahi(out).map((b) => b.id)).toEqual(["aaaa", "bbbb"]);
-  });
-});
+import { LINK_WAIT_MS, PairTimedOut, pairWhenPressed } from "./client";
 
 const LINK_NOT_PRESSED = JSON.stringify([{ error: { type: 101, description: "link button not pressed" } }]);
 const PAIRED = JSON.stringify([{ success: { username: "app-key", clientkey: "client-key" } }]);

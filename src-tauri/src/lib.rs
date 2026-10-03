@@ -65,7 +65,7 @@ pub fn run() {
             hue::hue_request,
             hue::hue_stream,
             hue::hue_stream_close,
-            hue::avahi_browse,
+            hue::discover_mdns,
             hue::discover_cloud,
             hue::device_name,
             daily::color_of_the_day,
