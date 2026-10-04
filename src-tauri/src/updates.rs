@@ -13,10 +13,6 @@
 // Off while the key or the address isn't set yet, and in development builds.
 // HUEFL_UPDATE_ENDPOINT overrides the address (for testing a release locally;
 // the signature is still required).
-//
-// Only where the app is its own source of updates (`channel`): a build for a
-// package manager leaves the plugin out (Cargo feature `self-update`), and a
-// Flatpak never updates itself, whatever it was built with.
 
 #[cfg(feature = "self-update")]
 use std::sync::Mutex;

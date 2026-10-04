@@ -336,9 +336,7 @@ pub struct FoundBridge {
     ip: String,
 }
 
-/// Bridges on the local network, through mDNS done in-process: no avahi
-/// daemon or tools needed (a Flatpak has neither). IPv4 only - the sync
-/// stream is IPv4-only, and a link-local IPv6 address needs its interface.
+/// Bridges on the local network, through mDNS
 #[tauri::command]
 pub async fn discover_mdns() -> Result<Vec<FoundBridge>, String> {
     tauri::async_runtime::spawn_blocking(browse_mdns).await.map_err(|e| e.to_string())?

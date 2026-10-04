@@ -1,11 +1,4 @@
 // Starting HueFL when the user logs in.
-//
-//   outside a Flatpak  an XDG Autostart entry, ~/.config/autostart/huefl.desktop
-//                      (the name the README once told people to create by hand,
-//                      so such a file shows up as "on")
-//   in a Flatpak       the Background portal - a sandboxed app can't write
-//                      there; the portal does it, and may ask the user first
-//
 // The window opens as on any start.
 
 use std::path::Path;
@@ -22,15 +15,13 @@ fn in_flatpak() -> bool {
     updates::channel() == UpdateChannel::Flathub
 }
 
-/// Whether HueFL starts at login, or None where that can't be read (in a
-/// Flatpak the portal only takes requests; the UI keeps the last answer).
+/// Whether HueFL starts at login, or None where that can't be read
 #[tauri::command]
 pub fn autostart_enabled() -> Option<bool> {
     (!in_flatpak()).then(|| paths::autostart_file().exists())
 }
 
-/// Turns starting at login on or off. Returns the resulting state - in a
-/// Flatpak the user may decline the portal's request.
+/// Turns starting at login on or off.
 #[tauri::command]
 pub async fn autostart_set(app: AppHandle, enabled: bool) -> Result<bool, String> {
     let (result, method) = if in_flatpak() {

@@ -80,7 +80,6 @@ export function GeneralTab({ preferences }: { preferences: Preferences }) {
   );
 }
 
-/** Opens HueFL at login: an autostart entry, or the portal inside a Flatpak. */
 function StartAtLogin({ enabled }: { enabled: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

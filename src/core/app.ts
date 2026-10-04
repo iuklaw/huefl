@@ -676,8 +676,7 @@ void listen<{ id: string; on: boolean }>("tray-room-changed", ({ payload }) => {
 export async function start(): Promise<void> {
   try {
     settings = await loadSettings();
-    // The autostart entry is the truth where it can be read (not in a
-    // Flatpak): it may have been added or removed by hand.
+    // The autostart entry is the truth where it can be read
     const autostart = await invoke<boolean | null>("autostart_enabled").catch(() => null);
     if (autostart !== null) settings = { ...settings, startAtLogin: autostart };
     log.info("app", "app.start", `HueFL ${await getVersion()} started`, {
