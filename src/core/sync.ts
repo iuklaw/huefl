@@ -5,6 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { log } from "@/core/log";
+import { toEngine } from "@/lib/tuning";
 import type {
   AreaDraft,
   AudioDevices,
@@ -13,13 +14,14 @@ import type {
   MusicStyle,
   SyncOverview,
   SyncStatus,
+  SyncTuning,
 } from "@/types";
 
 export type SyncRequest = {
   areaId: string;
   mode: "ambient" | "music" | "screen";
   palette: string[];
-  intensity: number;
+  tuning: SyncTuning;
   restore: boolean;
   style?: MusicStyle;
   source?: AudioSource;
@@ -112,9 +114,17 @@ export const sync = {
     patch({ monitors });
   },
 
-  async start(request: SyncRequest): Promise<void> {
+  async start({ tuning, ...request }: SyncRequest): Promise<void> {
     // Failures arrive as an "error" status too; the promise only mirrors them.
-    await invoke("sync_start", { request }).catch(() => {});
+    await invoke("sync_start", { request: { ...request, tuning: toEngine(tuning) } }).catch(() => {});
+  },
+
+  /** New settings for the running sync (its mode's); nothing while idle. */
+  async tune(tuning: SyncTuning): Promise<void> {
+    if (state.status.state !== "streaming") return;
+    await invoke("sync_tune", { tuning: toEngine(tuning) }).catch((error) =>
+      log.warn("app", "sync.tune_failed", String(error)),
+    );
   },
 
   async stop(): Promise<void> {

@@ -1,11 +1,13 @@
 // The Sync tab. Two states: a readiness checklist until everything light sync
-// needs is in place, then the controls - area, mode, colors, intensity, and a
-// big Start/Stop - with a live preview of what the lights show.
+// needs is in place, then the controls - area, mode, colors, intensity (with
+// its advanced settings), and a big Start/Stop - with a live preview of what the
+// lights show. Intensity and its advanced settings stay live while syncing.
 //
 // The engine runs in Rust; everything here goes through core/sync.ts.
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  ChevronDown,
   CircleAlert,
   Pencil,
   Play,
@@ -33,6 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -43,6 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Spinner } from "@/components/ui/spinner";
 import { actions } from "@/core/app";
 import { sync } from "@/core/sync";
@@ -52,14 +56,17 @@ import { t, type MessageKey } from "@/i18n";
 import { toHex } from "@/lib/color";
 import { POPULAR_PALETTES } from "@/lib/palettes";
 import { paletteBackground, paletteHex, scenePreview } from "@/lib/presets";
+import { applyPatch, INTENSITY_LEVELS, presetTuning } from "@/lib/tuning";
 import { cn } from "@/lib/utils";
 import type {
   AudioSource,
+  IntensityLevel,
   Monitor as MonitorInfo,
   MusicStyle,
   ReadinessCheck,
   SyncArea,
   SyncMode,
+  SyncTuning,
 } from "@/types";
 
 type Props = { onRepair: () => void };
@@ -229,7 +236,7 @@ function SyncControls({
       areaId: area.id,
       mode,
       palette: source.colors,
-      intensity: syncPrefs.intensity,
+      tuning: syncPrefs.tuning[mode],
       restore: syncPrefs.restore,
       style: syncPrefs.musicStyle,
       source: syncPrefs.audioSource,
@@ -382,9 +389,7 @@ function SyncControls({
       {showBars && <SpectrumBars colors={source.colors} />}
       {showScreen && (
         <ScreenPreview
-          channels={area.channels}
           colors={preview}
-          intensity={syncPrefs.intensity}
           aspect={monitor ? monitor.width / monitor.height : 16 / 9}
         />
       )}
@@ -392,18 +397,12 @@ function SyncControls({
       {/* Pinned to the bottom: always in reach, whatever is scrolled above.
           pb-8 clears the app footer bar, which overlays the window's bottom. */}
       <div className="shrink-0 space-y-3 border-t border-border bg-background/70 px-3 pt-3 pb-8 backdrop-blur-sm">
-        {/* Intensity */}
-        <Field label={t("sync.intensity")}>
-          <Segmented
-            options={[0, 1, 2, 3].map((level) => ({
-              value: String(level),
-              label: t(`sync.intensity.${level}` as MessageKey),
-            }))}
-            value={String(syncPrefs.intensity)}
-            disabled={busy}
-            onChange={(level) => void actions.setSyncPrefs({ intensity: Number(level) })}
-          />
-        </Field>
+        <TuningControls
+          mode={mode}
+          tuning={syncPrefs.tuning[mode]}
+          beats={mode === "music" && syncPrefs.musicStyle === "pulse"}
+          open={syncPrefs.advancedOpen}
+        />
 
         {/* Error */}
         {/* Declining the screen-sharing dialog is a choice, not a failure. */}
@@ -648,6 +647,140 @@ function MusicSettings({
         </p>
       </Field>
     </>
+  );
+}
+
+// --- Intensity and advanced settings ---------------------------------------------
+
+/**
+ * Intensity picks a preset for the current mode; Advanced settings opens the
+ * settings it sets. Both work while syncing: the lights follow at once.
+ * Sliders send every step, and save once let go.
+ */
+function TuningControls({
+  mode,
+  tuning,
+  beats,
+  open,
+}: {
+  mode: SyncMode;
+  tuning: SyncTuning;
+  /** Sensitivity only matters where beats do: music in the Pulse style. */
+  beats: boolean;
+  open: boolean;
+}) {
+  const set = (patch: Partial<Omit<SyncTuning, "intensity">>, commit: boolean) =>
+    void actions.setSyncTuning(mode, applyPatch(tuning, patch), commit);
+
+  return (
+    <Collapsible
+      open={open}
+      onOpenChange={(advancedOpen) => void actions.setSyncPrefs({ advancedOpen })}
+      className="space-y-3"
+    >
+      <Field
+        label={t("sync.intensity")}
+        aside={
+          <>
+            {tuning.intensity === null && (
+              <span className="text-[11px] text-muted-foreground">
+                · {t("sync.intensity.custom")}
+              </span>
+            )}
+            <CollapsibleTrigger className="ml-auto flex items-center gap-0.5 rounded-sm text-[11px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+              {t("sync.advanced")}
+              <ChevronDown
+                className={cn("size-3.5 transition-transform", open && "rotate-180")}
+                aria-hidden
+              />
+            </CollapsibleTrigger>
+          </>
+        }
+      >
+        <Segmented
+          options={INTENSITY_LEVELS.map((level) => ({
+            value: String(level),
+            label: t(`sync.intensity.${level}` as MessageKey),
+          }))}
+          value={String(tuning.intensity ?? "custom")}
+          onChange={(level) =>
+            void actions.setSyncTuning(mode, presetTuning(mode, Number(level) as IntensityLevel), true)
+          }
+        />
+      </Field>
+
+      <CollapsibleContent className="overflow-hidden data-open:animate-collapsible-down data-closed:animate-collapsible-up">
+        {/* Padding, not the last row's margin: it counts in the height Radix
+            measures, so the last slider isn't cut off. */}
+        <div className="space-y-2.5 pb-2">
+          <TuneSlider
+            label={t("sync.tune.brightness")}
+            hint={t("sync.tune.brightness_hint")}
+            value={tuning.brightness}
+            shown={`${Math.round(tuning.brightness[0])}–${Math.round(tuning.brightness[1])}%`}
+            onChange={([min, max], commit) => set({ brightness: [min!, max!] }, commit)}
+          />
+          <TuneSlider
+            label={t("sync.tune.speed")}
+            hint={t(`sync.tune.speed_hint.${mode}`)}
+            value={[tuning.speed]}
+            shown={`${Math.round(tuning.speed)}%`}
+            onChange={([speed], commit) => set({ speed: speed! }, commit)}
+          />
+          <TuneSlider
+            label={t("sync.tune.vividness")}
+            hint={t(`sync.tune.vividness_hint.${mode}`)}
+            value={[tuning.vividness]}
+            shown={`${Math.round(tuning.vividness)}%`}
+            onChange={([vividness], commit) => set({ vividness: vividness! }, commit)}
+          />
+          {beats && (
+            <TuneSlider
+              label={t("sync.tune.sensitivity")}
+              hint={t("sync.tune.sensitivity_hint")}
+              value={[tuning.sensitivity]}
+              shown={`${Math.round(tuning.sensitivity)}%`}
+              onChange={([sensitivity], commit) => set({ sensitivity: sensitivity! }, commit)}
+            />
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function TuneSlider({
+  label,
+  hint,
+  value,
+  shown,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  /** One value, or two for a range. */
+  value: number[];
+  /** The value as text, next to the label. */
+  shown: string;
+  onChange: (value: number[], commit: boolean) => void;
+}) {
+  return (
+    <div className="space-y-1" title={hint}>
+      <div className="flex items-baseline justify-between text-xs">
+        <span>{label}</span>
+        <span className="text-[11px] text-muted-foreground tabular-nums">{shown}</span>
+      </div>
+      <Slider
+        value={value}
+        min={0}
+        max={100}
+        step={1}
+        minStepsBetweenThumbs={value.length > 1 ? 5 : undefined}
+        aria-label={label}
+        onValueChange={(v) => onChange(v, false)}
+        onValueCommit={(v) => onChange(v, true)}
+      />
+    </div>
   );
 }
 

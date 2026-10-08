@@ -4,6 +4,7 @@
 // webview has no file system access. Rust reads the bridge fields too (the
 // tray talks to the bridge on its own) and ignores the rest.
 import { invoke } from "@tauri-apps/api/core";
+import { sanitizeTuning, tuningForAll } from "./lib/tuning";
 import type { CloseBehavior, Library, ScheduleLocation, SyncPrefs, ThemePreference } from "./types";
 
 export type BridgePairing = {
@@ -49,7 +50,8 @@ export const DEFAULT_SETTINGS: Settings = {
     areaId: null,
     mode: "ambient",
     colorsFrom: "palette:sunset",
-    intensity: 1,
+    tuning: tuningForAll(1),
+    advancedOpen: false,
     restore: true,
     musicStyle: "pulse",
     audioSource: "system",
@@ -68,17 +70,24 @@ export async function loadSettings(): Promise<Settings> {
       ...DEFAULT_SETTINGS,
       ...saved,
       library: { ...DEFAULT_SETTINGS.library, ...saved.library },
-      syncPrefs: sanitizeSyncPrefs({ ...DEFAULT_SETTINGS.syncPrefs, ...saved.syncPrefs }),
+      syncPrefs: sanitizeSyncPrefs(saved.syncPrefs),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
 }
 
-/** Values from older versions that no longer exist fall back to defaults. */
-function sanitizeSyncPrefs(prefs: SyncPrefs): SyncPrefs {
+/** Values from older versions that no longer exist fall back to defaults.
+ *  Before per-mode settings there was one `intensity`; every mode starts from it. */
+function sanitizeSyncPrefs(saved: Partial<SyncPrefs> & { intensity?: unknown } = {}): SyncPrefs {
+  const { intensity, tuning, ...rest } = saved;
+  const prefs = { ...DEFAULT_SETTINGS.syncPrefs, ...rest };
   const styles: SyncPrefs["musicStyle"][] = ["pulse", "spectrum"];
-  return styles.includes(prefs.musicStyle) ? prefs : { ...prefs, musicStyle: "pulse" };
+  return {
+    ...prefs,
+    musicStyle: styles.includes(prefs.musicStyle) ? prefs.musicStyle : "pulse",
+    tuning: sanitizeTuning(tuning, intensity),
+  };
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {

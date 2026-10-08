@@ -18,6 +18,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { log } from "@/core/log";
+import { sync } from "@/core/sync";
 import { locale, t } from "@/i18n";
 import {
   discoverBridges,
@@ -280,6 +281,15 @@ export const actions: Actions = {
     patchState({ syncPrefs: next });
     await saveSettings(settings);
   },
+
+  setSyncTuning: async (mode, tuning, commit) => {
+    const next = { ...state.syncPrefs, tuning: { ...state.syncPrefs.tuning, [mode]: tuning } };
+    settings = { ...settings, syncPrefs: next };
+    patchState({ syncPrefs: next });
+    await sync.tune(tuning);
+    if (commit) await saveSettings(settings);
+  },
+
 
   minimize: () => appWindow.minimize(),
   // Rust remembers the position on hide and restores it on show (window.rs).

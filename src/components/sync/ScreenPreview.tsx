@@ -1,6 +1,6 @@
 // Screen preview for screen sync: the coarse color grid Rust samples the
-// screen into (zones::Grid, 32 × 18 cells), drawn as a soft miniature, with
-// a marker where each light looks and the color it shows.
+// screen into (zones::Grid, 32 × 18 cells), drawn as a soft miniature that
+// glows with the lights' colors.
 //
 // Drawn as a monitor - bezel, chin, stand - in CSS, so it follows the
 // monitor's proportions and stays sharp at any size.
@@ -12,33 +12,20 @@
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { averageColor, hexToRgb, toCss } from "@/lib/color";
-import type { Position3 } from "@/types";
 
 type Grid = { cols: number; rows: number; cells: number[]; aspect: number };
 
-/** A light's view, as in src-tauri/src/sync/screen/zones.rs (SIGMA_X/Y × ZoneStyle.focus). */
-const SIGMA = { x: 0.18, y: 0.35 };
-const FOCUS = [1.2, 1.0, 0.8, 0.6];
 const SCREEN_HEIGHT = 112;
 const MAX_WIDTH = 320;
 
-/** Where a light looks: x -> left…right, height z -> top…bottom (zones::watch_point). */
-function watchPoint({ x, z }: Position3): { u: number; v: number } {
-  const clamp = (n: number) => Math.min(1, Math.max(0, n));
-  return { u: clamp((x + 1) / 2), v: clamp(1 - (z + 1) / 2) };
-}
-
 type Props = {
-  /** The area's channels, in channel order. */
-  channels: { channelId: number; position: Position3 }[];
-  /** Current light colors, "#RRGGBB", in channel order. */
+  /** Current light colors, "#RRGGBB" - for the glow around the screen. */
   colors: string[];
-  intensity: number;
   /** Width / height of the captured monitor, until the stream says (Wayland). */
   aspect: number;
 };
 
-export function ScreenPreview({ channels, colors, intensity, aspect: initialAspect }: Props) {
+export function ScreenPreview({ colors, aspect: initialAspect }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   // The captured picture's own proportions, once frames arrive.
   const [streamAspect, setStreamAspect] = useState<number | null>(null);
@@ -60,7 +47,6 @@ export function ScreenPreview({ channels, colors, intensity, aspect: initialAspe
     return () => void unlisten.then((stop) => stop());
   }, []);
 
-  const focus = FOCUS[Math.min(3, Math.max(0, intensity))]!;
   // The screen lights up its surroundings a little, like in a dark room.
   const average = averageColor(colors.map(hexToRgb));
   const glow = average ? `0 0 28px -6px ${toCss(average, 0.8)}` : "none";
@@ -83,31 +69,6 @@ export function ScreenPreview({ channels, colors, intensity, aspect: initialAspe
           {/* 32 × 18 pixels, stretched: the browser's smoothing blurs the cells
               into a soft picture. */}
           <canvas ref={canvas} width={32} height={18} className="absolute inset-0 size-full" />
-
-          {channels.map((channel, i) => {
-            const { u, v } = watchPoint(channel.position);
-            const color = colors[i] ?? "#000000";
-            const at = { left: `${u * 100}%`, top: `${v * 100}%` };
-            return (
-              <div key={channel.channelId}>
-                {/* The part of the screen this light follows. */}
-                <div
-                  className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border opacity-60"
-                  style={{
-                    ...at,
-                    width: `${SIGMA.x * focus * 200}%`,
-                    height: `${SIGMA.y * focus * 200}%`,
-                    borderColor: color,
-                  }}
-                />
-                {/* The light, in the color it shows now. */}
-                <div
-                  className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-white/80 transition-colors duration-100"
-                  style={{ ...at, backgroundColor: color, boxShadow: `0 0 10px ${color}` }}
-                />
-              </div>
-            );
-          })}
         </div>
         {/* Chin with the power light. */}
         <div className="flex h-2 items-center justify-center">

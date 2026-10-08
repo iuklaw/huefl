@@ -158,6 +158,9 @@ export type Actions = {
   applyScene(scene: Scene): void;
   applyPalette(roomId: string, palette: Palette): void;
   setSyncPrefs(patch: Partial<SyncPrefs>): Promise<void>;
+  /** Changes one mode's sync settings; the running sync follows at once.
+   *  `commit`: also save them (once a slider is let go). */
+  setSyncTuning(mode: SyncMode, tuning: SyncTuning, commit: boolean): Promise<void>;
   setScheduleLocation(location: ScheduleLocation): Promise<void>;
   setPreferences(patch: Partial<Preferences>): Promise<void>;
   /** Asks the system to start HueFL at login (or not); stores what it agreed to. */
@@ -228,14 +231,31 @@ export type SyncMode = "ambient" | "music" | "screen";
 export type MusicStyle = "pulse" | "spectrum";
 export type AudioSource = "system" | "microphone";
 
+/** Intensity: 0 subtle … 3 extreme. */
+export type IntensityLevel = 0 | 1 | 2 | 3;
+
+/** The sync settings of one mode; positions 0..100 (lib/tuning.ts). */
+export type SyncTuning = {
+  /** The preset these settings come from; null = Custom. */
+  intensity: IntensityLevel | null;
+  /** Min and max. */
+  brightness: [number, number];
+  speed: number;
+  vividness: number;
+  /** Music only: how easily a beat triggers. */
+  sensitivity: number;
+};
+
 /** Persisted choices for the Sync tab. */
 export type SyncPrefs = {
   areaId: string | null;
   mode: SyncMode;
   /** "palette:<id>" or "scene:<id>" */
   colorsFrom: string;
-  /** 0 subtle … 3 extreme */
-  intensity: number;
+  /** Sync settings, one set per mode. */
+  tuning: Record<SyncMode, SyncTuning>;
+  /** The Advanced settings section is open. */
+  advancedOpen: boolean;
   restore: boolean;
   musicStyle: MusicStyle;
   audioSource: AudioSource;
