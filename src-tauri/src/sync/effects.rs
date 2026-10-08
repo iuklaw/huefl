@@ -9,8 +9,9 @@ use std::sync::{Arc, Mutex};
 
 use super::audio::analyzer::{Features, SPECTRUM_BANDS};
 use super::entertainment::api::AreaChannel;
-use super::screen::zones::{zone_colors, Grid, ZoneStyle};
+use super::screen::zones::{saturate, zone_colors, Grid, ZoneStyle};
 use super::smoothing::{Envelope, SafetyLimiter};
+use super::tuning::SharedTuning;
 
 /// Linear RGB, 0.0..=1.0.
 pub type Rgb = [f32; 3];
@@ -47,32 +48,30 @@ pub trait Effect: Send {
     }
 }
 
-/// Speed per intensity step (0 subtle … 3 extreme), in palette cycles per second.
-const CYCLE_SPEED: [f32; 4] = [0.03, 0.07, 0.15, 0.35];
-
-/// "Test": the palette flows slowly across the lights, left to right. Proves
-/// the whole pipeline end to end before music and screen exist.
+/// Ambient: the palette flows slowly across the lights, left to right.
 pub struct PaletteCycle {
     palette: Vec<Rgb>,
-    speed: f32,
+    tuning: SharedTuning,
     phase: f32,
 }
 
 impl PaletteCycle {
-    pub fn new(palette: Vec<Rgb>, intensity: u8) -> Self {
+    pub fn new(palette: Vec<Rgb>, tuning: SharedTuning) -> Self {
         let palette = if palette.is_empty() { vec![[1.0, 1.0, 1.0]] } else { palette };
-        Self { palette, speed: CYCLE_SPEED[usize::from(intensity.min(3))], phase: 0.0 }
+        Self { palette, tuning, phase: 0.0 }
     }
 }
 
 impl Effect for PaletteCycle {
     fn render(&mut self, dt: f32, channels: &[AreaChannel]) -> Vec<Rgb> {
-        self.phase = (self.phase + dt * self.speed).fract();
+        let tuning = *self.tuning.lock().unwrap();
+        self.phase = (self.phase + dt * tuning.cycle_speed()).fract();
+        let saturation = tuning.palette_saturation();
         let order = left_to_right(channels);
         let n = channels.len().max(1) as f32;
         order
             .iter()
-            .map(|&rank| sample_cyclic(&self.palette, self.phase + rank as f32 / n))
+            .map(|&rank| vivid(sample_cyclic(&self.palette, self.phase + rank as f32 / n), saturation))
             .collect()
     }
 }
@@ -97,16 +96,15 @@ impl MusicStyle {
     }
 }
 
-/// Fade-out time per intensity step (0 subtle … 3 extreme), seconds.
-const RELEASE: [f32; 4] = [0.6, 0.35, 0.2, 0.1];
 const ATTACK: f32 = 0.03;
-/// Lights never go fully dark in quiet passages.
-const FLOOR: f32 = 0.05;
+/// A trace of color in silence, so the brightness range (tuning::BrightnessStage)
+/// still knows each light's hue; its minimum decides how bright that is.
+const HUE_TRACE: f32 = 0.002;
 
 pub struct MusicEffect {
     style: MusicStyle,
     palette: Vec<Rgb>,
-    release: f32,
+    tuning: SharedTuning,
     features: Arc<Mutex<Features>>,
     latest: Features,
     last_beats: u64,
@@ -122,7 +120,7 @@ impl MusicEffect {
     pub fn new(
         style: MusicStyle,
         palette: Vec<Rgb>,
-        intensity: u8,
+        tuning: SharedTuning,
         safe_mode: bool,
         features: Arc<Mutex<Features>>,
         lost: Arc<AtomicBool>,
@@ -131,7 +129,7 @@ impl MusicEffect {
         Self {
             style,
             palette,
-            release: RELEASE[usize::from(intensity.min(3))],
+            tuning,
             features,
             latest: Features::default(),
             last_beats: 0,
@@ -146,6 +144,8 @@ impl MusicEffect {
 
 impl Effect for MusicEffect {
     fn render(&mut self, dt: f32, channels: &[AreaChannel]) -> Vec<Rgb> {
+        let tuning = *self.tuning.lock().unwrap();
+        let (release, saturation) = (tuning.music_release(), tuning.palette_saturation());
         self.latest = *self.features.lock().unwrap();
         let f = self.latest;
         let beat = f.beats != self.last_beats;
@@ -169,8 +169,8 @@ impl Effect for MusicEffect {
                     MusicStyle::Pulse => f.energy,
                     MusicStyle::Spectrum => f.bands[band_of(ranks[i], n)],
                 };
-                let level = self.envelopes[i].step(target, dt, ATTACK, self.release);
-                FLOOR + (1.0 - FLOOR) * level.clamp(0.0, 1.0)
+                let level = self.envelopes[i].step(target, dt, ATTACK, release);
+                level.clamp(HUE_TRACE, 1.0)
             })
             .collect();
         if let Some(limiter) = &mut self.safe {
@@ -186,7 +186,7 @@ impl Effect for MusicEffect {
                     // One color per band, fixed, so each band keeps its identity.
                     MusicStyle::Spectrum => band_of(ranks[i], n) as f32,
                 };
-                let color = sample_cyclic(&self.palette, position / palette_len);
+                let color = vivid(sample_cyclic(&self.palette, position / palette_len), saturation);
                 color.map(|c| c * levels[i])
             })
             .collect()
@@ -207,9 +207,6 @@ impl Effect for MusicEffect {
 
 // --- Screen ------------------------------------------------------------------
 
-/// Reaction time per intensity step (0 subtle … 3 extreme), seconds. How
-/// vivid the colors are also follows intensity: zones::ZoneStyle.
-const SCREEN_FOLLOW: [f32; 4] = [0.5, 0.25, 0.12, 0.05];
 /// Seconds without a picture before the UI says it's waiting for the screen.
 const NO_PICTURE_AFTER: f32 = 5.0;
 
@@ -218,8 +215,8 @@ const NO_PICTURE_AFTER: f32 = 5.0;
 /// here too - films and games have explosions and strobes.
 pub struct ScreenEffect {
     grid: Arc<Mutex<Option<Grid>>>,
-    follow: f32,
-    style: ZoneStyle,
+    /// Speed: reaction time; Vividness: zones::ZoneStyle.
+    tuning: SharedTuning,
     envelopes: Vec<[Envelope; 3]>,
     safe: Option<SafetyLimiter>,
     lost: Arc<AtomicBool>,
@@ -231,7 +228,7 @@ pub struct ScreenEffect {
 
 impl ScreenEffect {
     pub fn new(
-        intensity: u8,
+        tuning: SharedTuning,
         safe_mode: bool,
         grid: Arc<Mutex<Option<Grid>>>,
         lost: Arc<AtomicBool>,
@@ -239,8 +236,7 @@ impl ScreenEffect {
     ) -> Self {
         Self {
             grid,
-            follow: SCREEN_FOLLOW[usize::from(intensity.min(3))],
-            style: ZoneStyle::for_intensity(intensity),
+            tuning,
             envelopes: Vec::new(),
             safe: safe_mode.then(SafetyLimiter::default),
             lost,
@@ -252,10 +248,12 @@ impl ScreenEffect {
 
 impl Effect for ScreenEffect {
     fn render(&mut self, dt: f32, channels: &[AreaChannel]) -> Vec<Rgb> {
+        let tuning = *self.tuning.lock().unwrap();
+        let follow = tuning.screen_follow();
         let targets = match self.grid.lock().unwrap().as_ref() {
             Some(grid) => {
                 self.no_picture = 0.0;
-                zone_colors(grid, channels, self.style)
+                zone_colors(grid, channels, ZoneStyle::at(tuning.vividness))
             }
             None => {
                 self.no_picture += dt;
@@ -266,7 +264,7 @@ impl Effect for ScreenEffect {
         let mut colors: Vec<Rgb> = targets
             .iter()
             .zip(&mut self.envelopes)
-            .map(|(target, env)| [0, 1, 2].map(|c| env[c].step(target[c], dt, self.follow, self.follow)))
+            .map(|(target, env)| [0, 1, 2].map(|c| env[c].step(target[c], dt, follow, follow)))
             .collect();
 
         if let Some(limiter) = &mut self.safe {
@@ -301,6 +299,11 @@ impl Effect for ScreenEffect {
     fn failure(&self) -> Option<String> {
         self.failure.lock().unwrap().clone()
     }
+}
+
+/// A palette color made more or less saturated; 1 leaves it exactly as is.
+fn vivid(color: Rgb, saturation: f32) -> Rgb {
+    if saturation == 1.0 { color } else { saturate(color, saturation) }
 }
 
 /// Which band a light shows in the spectrum style: the leftmost third bass,
@@ -361,6 +364,18 @@ pub fn linear_to_srgb8(v: f32) -> u8 {
 mod tests {
     use super::*;
     use crate::sync::entertainment::api::Position;
+    use crate::sync::tuning::Tuning;
+
+    /// Settings as Intensity step `level` (0 subtle … 3 extreme) sets them for `mode`.
+    fn step(level: u8, mode: &str) -> SharedTuning {
+        let k = f32::from(level) / 3.0;
+        let tuning = match mode {
+            "music" => Tuning { brightness_min: 0.05, speed: k, ..Tuning::default() },
+            "screen" => Tuning { speed: k, vividness: k, ..Tuning::default() },
+            _ => Tuning { speed: k, ..Tuning::default() },
+        };
+        Arc::new(Mutex::new(tuning))
+    }
 
     fn channel(id: u8, x: f64) -> AreaChannel {
         AreaChannel { channel_id: id, position: Position { x, y: 0.0, z: 0.0 } }
@@ -384,7 +399,7 @@ mod tests {
 
     #[test]
     fn palette_cycle_renders_one_color_per_channel() {
-        let mut effect = PaletteCycle::new(vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], 1);
+        let mut effect = PaletteCycle::new(vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], step(1, "ambient"));
         let channels = [channel(0, -1.0), channel(1, 0.0), channel(2, 1.0)];
         let colors = effect.render(0.0, &channels);
         assert_eq!(colors, vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
@@ -395,7 +410,7 @@ mod tests {
     fn music(style: MusicStyle, safe: bool) -> (MusicEffect, Arc<Mutex<Features>>) {
         let features = Arc::new(Mutex::new(Features::default()));
         let palette = vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
-        (MusicEffect::new(style, palette, 1, safe, features.clone(), Arc::default()), features)
+        (MusicEffect::new(style, palette, step(1, "music"), safe, features.clone(), Arc::default()), features)
     }
 
     fn brightness(rgb: Rgb) -> f32 {
@@ -453,7 +468,7 @@ mod tests {
         // five times a second for 2 s: without the limiter, a strobe. The
         // output must not flash more than 3 times a second.
         let features = Arc::new(Mutex::new(Features::default()));
-        let mut effect = MusicEffect::new(MusicStyle::Pulse, vec![[1.0, 1.0, 1.0]], 3, true, features.clone(), Arc::default());
+        let mut effect = MusicEffect::new(MusicStyle::Pulse, vec![[1.0, 1.0, 1.0]], step(3, "music"), true, features.clone(), Arc::default());
         let channels = [channel(0, 0.0)];
         let mut previous = 0.0;
         let mut big_rises = 0;
@@ -475,7 +490,7 @@ mod tests {
         use crate::sync::screen::zones::{GRID_COLS, GRID_ROWS};
         let red = Grid { cells: vec![[1.0, 0.0, 0.0]; GRID_COLS * GRID_ROWS], aspect: 16.0 / 9.0 };
         let grid = Arc::new(Mutex::new(Some(red)));
-        let mut effect = ScreenEffect::new(3, false, grid.clone(), Arc::default(), Arc::default());
+        let mut effect = ScreenEffect::new(step(3, "screen"), false, grid.clone(), Arc::default(), Arc::default());
         let channels = [channel(0, 0.0)];
         let mut color = [0.0; 3];
         for _ in 0..25 {
@@ -492,7 +507,7 @@ mod tests {
     #[test]
     fn screen_effect_says_when_no_picture_comes() {
         let grid = Arc::new(Mutex::new(None));
-        let mut effect = ScreenEffect::new(1, false, grid.clone(), Arc::default(), Arc::default());
+        let mut effect = ScreenEffect::new(step(1, "screen"), false, grid.clone(), Arc::default(), Arc::default());
         let channels = [channel(0, 0.0)];
         for _ in 0..200 {
             effect.render(0.02, &channels); // 4 s: still starting up
@@ -512,7 +527,7 @@ mod tests {
     #[test]
     fn screen_effect_reports_a_capture_failure() {
         let failure = Arc::new(Mutex::new(None));
-        let effect = ScreenEffect::new(1, false, Arc::default(), Arc::default(), failure.clone());
+        let effect = ScreenEffect::new(step(1, "screen"), false, Arc::default(), Arc::default(), failure.clone());
         assert_eq!(effect.failure(), None);
         *failure.lock().unwrap() = Some("unreadable frames".to_string());
         assert_eq!(effect.failure().as_deref(), Some("unreadable frames"));

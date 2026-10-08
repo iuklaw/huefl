@@ -9,15 +9,16 @@
 //    point, so neighbours blend smoothly instead of switching at hard edges.
 // 3. Near-black cells (letterbox bars, dark UI chrome) count for little,
 //    so a film's bars don't pull every light toward black.
-// 4. Saturation and brightness are boosted by intensity (ZoneStyle):
+// 4. Saturation and brightness are boosted by Vividness (ZoneStyle):
 //    averages of real images are greyish and dim, and lights show washed-out
-//    colors poorly. Higher intensity also narrows each light's view, for more
+//    colors poorly. Higher Vividness also narrows each light's view, for more
 //    local, contrasting colors.
 //
 // Pure - tested with synthetic frames.
 
 use crate::sync::effects::Rgb;
 use crate::sync::entertainment::api::AreaChannel;
+use crate::sync::tuning::steps;
 
 pub const GRID_COLS: usize = 32;
 pub const GRID_ROWS: usize = 18;
@@ -41,21 +42,23 @@ pub struct ZoneStyle {
 }
 
 impl ZoneStyle {
-    /// Per intensity step, 0 subtle … 3 extreme.
-    pub fn for_intensity(intensity: u8) -> Self {
-        const STYLES: [ZoneStyle; 4] = [
+    /// At a Vividness position (0..1); k/3 is the Intensity step k of
+    /// earlier versions, and positions between blend the neighbouring steps.
+    pub fn at(vividness: f32) -> Self {
+        const STEPS: [ZoneStyle; 4] = [
             ZoneStyle { saturation: 1.15, gain: 1.0, focus: 1.2 },
             ZoneStyle { saturation: 1.35, gain: 1.3, focus: 1.0 },
             ZoneStyle { saturation: 1.7, gain: 1.8, focus: 0.8 },
             ZoneStyle { saturation: 2.1, gain: 2.6, focus: 0.6 },
         ];
-        STYLES[usize::from(intensity.min(3))]
+        let field = |f: fn(&ZoneStyle) -> f32| steps(&STEPS.each_ref().map(f), vividness);
+        ZoneStyle { saturation: field(|s| s.saturation), gain: field(|s| s.gain), focus: field(|s| s.focus) }
     }
 }
 
 impl Default for ZoneStyle {
     fn default() -> Self {
-        Self::for_intensity(1)
+        Self::at(1.0 / 3.0)
     }
 }
 
@@ -163,7 +166,7 @@ fn luminance(c: Rgb) -> f32 {
     0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 }
 
-fn saturate(c: Rgb, amount: f32) -> Rgb {
+pub(crate) fn saturate(c: Rgb, amount: f32) -> Rgb {
     let grey = luminance(c);
     c.map(|v| (grey + (v - grey) * amount).clamp(0.0, 1.0))
 }
@@ -265,7 +268,7 @@ mod tests {
     fn extreme_is_brighter_and_more_saturated_than_subtle() {
         // A dim, greyish orange: what an average of a real picture looks like.
         let grid = grid_from_bgrx(&frame(|_, _| (140, 100, 70)), W, H, W * 4);
-        let [subtle, extreme] = [0, 3].map(|i| zone_colors(&grid, &[light(0.0, 0.0)], ZoneStyle::for_intensity(i))[0]);
+        let [subtle, extreme] = [0, 3].map(|i| zone_colors(&grid, &[light(0.0, 0.0)], ZoneStyle::at(i as f32 / 3.0))[0]);
         let max = |c: Rgb| c.iter().cloned().fold(0.0f32, f32::max);
         let min = |c: Rgb| c.iter().cloned().fold(1.0f32, f32::min);
         assert!(max(extreme) > max(subtle) * 1.5, "{subtle:?} -> {extreme:?}");
@@ -278,7 +281,7 @@ mod tests {
         let grid = grid_from_bgrx(&halves, W, H, W * 4);
         // How much blue the left light picks up from the right half.
         let bleed = |i| {
-            let c = zone_colors(&grid, &[light(-0.4, 0.0)], ZoneStyle::for_intensity(i))[0];
+            let c = zone_colors(&grid, &[light(-0.4, 0.0)], ZoneStyle::at(i as f32 / 3.0))[0];
             c[2] / c[0]
         };
         assert!(bleed(3) < bleed(0), "subtle {} vs extreme {}", bleed(0), bleed(3));

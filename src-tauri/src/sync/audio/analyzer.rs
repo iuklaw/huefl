@@ -6,8 +6,9 @@
 //   -> band amplitudes: bass 20–250 Hz, mid 250–4000 Hz, treble 4–16 kHz
 //   -> automatic gain: each value relative to its own recent peak, so quiet and
 //     loud music both use the full range
-//   -> beat: bass spectral flux above an adaptive threshold (mean + 1.5σ of the
-//     last second), at most one every 250 ms (240 BPM)
+//   -> beat: bass spectral flux above an adaptive threshold (mean + kσ of the
+//     last second, k from Sensitivity: 1.5 in the middle), at most one every
+//     250 ms (240 BPM)
 //   -> spectrum: 24 log-spaced bars for the UI's visualizer, from the same FFT
 
 use std::collections::VecDeque;
@@ -15,6 +16,8 @@ use std::sync::Arc;
 
 use rustfft::num_complex::Complex;
 use rustfft::{Fft, FftPlanner};
+
+use crate::sync::tuning::{SharedTuning, Tuning};
 
 pub const SAMPLE_RATE: f32 = 48_000.0;
 pub const FFT_SIZE: usize = 1024;
@@ -28,7 +31,6 @@ const PEAK_FLOOR: f32 = 1e-3;
 /// Below this RMS the input counts as silence (no gain boost of noise).
 const SILENCE_RMS: f32 = 1e-4;
 const FLUX_HISTORY: usize = 94; // ~1 s
-const BEAT_SIGMA: f32 = 1.5;
 const MIN_BEAT_INTERVAL: f32 = 0.25;
 
 /// Bars of the UI's spectrum: log-spaced from 60 Hz to 16 kHz.
@@ -71,6 +73,8 @@ pub struct Analyzer {
     flux: VecDeque<f32>,
     since_beat: f32,
     features: Features,
+    /// Read for the beat threshold; None: the middle sensitivity.
+    tuning: Option<SharedTuning>,
 }
 
 impl Default for Analyzer {
@@ -89,11 +93,16 @@ impl Default for Analyzer {
             flux: VecDeque::with_capacity(FLUX_HISTORY),
             since_beat: MIN_BEAT_INTERVAL,
             features: Features::default(),
+            tuning: None,
         }
     }
 }
 
 impl Analyzer {
+    pub fn new(tuning: SharedTuning) -> Self {
+        Self { tuning: Some(tuning), ..Self::default() }
+    }
+
     /// Feed the next block of mono samples; returns the updated features.
     pub fn process(&mut self, block: &[f32]) -> Features {
         for &s in block {
@@ -132,7 +141,8 @@ impl Analyzer {
         let flux = (bands[0] - self.prev_bass).max(0.0);
         self.prev_bass = bands[0];
         let (mean, std) = mean_std(&self.flux);
-        if flux > mean + BEAT_SIGMA * std && flux > 0.05 * self.band_peaks[0] && self.since_beat >= MIN_BEAT_INTERVAL {
+        let sigma = self.tuning.as_ref().map_or_else(|| Tuning::default().beat_sigma(), |t| t.lock().unwrap().beat_sigma());
+        if flux > mean + sigma * std && flux > 0.05 * self.band_peaks[0] && self.since_beat >= MIN_BEAT_INTERVAL {
             self.features.beats += 1;
             self.since_beat = 0.0;
         }

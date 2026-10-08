@@ -19,6 +19,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
 use super::analyzer::Features;
+use crate::sync::tuning::SharedTuning;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AudioInput {
@@ -75,6 +76,7 @@ mod pulse {
     use libpulse_simple_binding::Simple;
 
     use super::{AudioEvent, AudioInput, AudioSource, EventSink};
+    use crate::sync::tuning::SharedTuning;
     use crate::sync::audio::analyzer::{Analyzer, Features, BLOCK, SAMPLE_RATE};
     use crate::sync::audio::devices::{self, should_reopen};
 
@@ -126,6 +128,7 @@ mod pulse {
         input: AudioInput,
         features: Arc<Mutex<Features>>,
         lost: Arc<AtomicBool>,
+        tuning: SharedTuning,
         on_event: EventSink,
     ) -> Result<AudioSource, String> {
         let stop = Arc::new(AtomicBool::new(false));
@@ -166,7 +169,7 @@ mod pulse {
                             on_event(AudioEvent::Restored);
                         }
                         retry = RETRY_MIN;
-                        let mut analyzer = Analyzer::default();
+                        let mut analyzer = Analyzer::new(tuning.clone());
                         let mut checked = Instant::now();
 
                         while !stop.load(Ordering::SeqCst) {
@@ -214,13 +217,14 @@ impl AudioSource {
         input: AudioInput,
         features: Arc<Mutex<Features>>,
         lost: Arc<AtomicBool>,
+        tuning: SharedTuning,
         on_event: EventSink,
     ) -> Result<Self, String> {
         #[cfg(feature = "sync-audio")]
-        return pulse::start(input, features, lost, on_event);
+        return pulse::start(input, features, lost, tuning, on_event);
         #[cfg(not(feature = "sync-audio"))]
         {
-            let _ = (input, features, lost, on_event);
+            let _ = (input, features, lost, tuning, on_event);
             Err("This build has no audio support (feature sync-audio).".into())
         }
     }
@@ -241,6 +245,7 @@ mod live {
             AudioInput::System,
             features.clone(),
             lost,
+            Arc::default(),
             Box::new(|event| println!("event: {event:?}")),
         )
         .expect("capture");

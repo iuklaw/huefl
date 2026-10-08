@@ -21,6 +21,7 @@ use super::audio::capture::{AudioEvent, AudioInput, AudioSource};
 use super::effects::{self, Effect, MusicEffect, MusicStyle, PaletteCycle, ScreenEffect};
 use super::screen::capture::{self as screen_capture, ScreenEvent, ScreenSource, StartError};
 use super::screen::zones::{GRID_COLS, GRID_ROWS};
+use super::tuning::{BrightnessStage, SharedTuning, Tuning};
 use super::entertainment::api::{Area, BridgeAccess};
 use super::entertainment::dtls::DtlsStream;
 use super::entertainment::protocol::{encode, ChannelColor, ColorSpace};
@@ -100,8 +101,8 @@ pub struct SyncRequest {
     pub safe_mode: bool,
     /// "#RRGGBB" colors
     pub palette: Vec<String>,
-    /// 0 subtle … 3 extreme
-    pub intensity: u8,
+    /// Brightness, Speed, Vividness, Sensitivity; changeable while streaming.
+    pub tuning: Tuning,
     /// Put the lights back as they were after stopping.
     pub restore: bool,
     /// Stop another app's stream on this bridge first.
@@ -116,6 +117,7 @@ fn default_true() -> bool {
 struct Session {
     stop: Arc<AtomicBool>,
     supervisor: JoinHandle<()>,
+    tuning: SharedTuning,
 }
 
 #[derive(Default)]
@@ -137,6 +139,17 @@ impl SyncManager {
 
     pub fn last_request(&self) -> Option<SyncRequest> {
         self.last_request.lock().unwrap().clone()
+    }
+
+    /// New settings for the running session, if any; and for the next
+    /// "repeat last sync" from the tray.
+    pub async fn tune(&self, tuning: Tuning) {
+        if let Some(session) = self.session.lock().await.as_ref() {
+            *session.tuning.lock().unwrap() = tuning;
+        }
+        if let Some(request) = self.last_request.lock().unwrap().as_mut() {
+            request.tuning = tuning;
+        }
     }
 }
 
@@ -216,6 +229,7 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
     };
 
     let palette: Vec<_> = request.palette.iter().filter_map(|h| effects::parse_hex(h)).collect();
+    let tuning: SharedTuning = Arc::new(Mutex::new(request.tuning));
     // Inputs are captured for the session's lifetime; dropping them stops capture.
     // They open before the area starts streaming: on Wayland the user first
     // picks a screen in the portal's dialog, and may take a while or decline.
@@ -239,14 +253,14 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
                 };
                 logs::write(&log_app, level, "app", code, message, None);
             });
-            match AudioSource::start(AudioInput::parse(request.source.as_deref()), features.clone(), lost.clone(), on_event) {
+            match AudioSource::start(AudioInput::parse(request.source.as_deref()), features.clone(), lost.clone(), tuning.clone(), on_event) {
                 Ok(source) => audio = Some(source),
                 Err(message) => return fail(app, "audio", message),
             }
             Box::new(MusicEffect::new(
                 MusicStyle::parse(request.style.as_deref()),
                 palette,
-                request.intensity,
+                tuning.clone(),
                 request.safe_mode,
                 features,
                 lost,
@@ -286,9 +300,9 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
                 }
                 Err(StartError::Failed(message)) => return fail(app, "screen", message),
             }
-            Box::new(ScreenEffect::new(request.intensity, request.safe_mode, grid, lost, failure))
+            Box::new(ScreenEffect::new(tuning.clone(), request.safe_mode, grid, lost, failure))
         }
-        _ => Box::new(PaletteCycle::new(palette, request.intensity)),
+        _ => Box::new(PaletteCycle::new(palette, tuning.clone())),
     };
 
     if let Err(message) = access.set_streaming(&hue, &area.id, true).await {
@@ -300,15 +314,16 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
         "app",
         "sync.start",
         format!("Sync started on “{}” ({})", area.name, request.mode),
-        Some(json!({ "area": area.name, "mode": request.mode, "channels": area.channels.len(), "intensity": request.intensity })),
+        Some(json!({ "area": area.name, "mode": request.mode, "channels": area.channels.len(), "tuning": request.tuning })),
     );
 
     let stop = Arc::new(AtomicBool::new(false));
     let dropped = Arc::new(AtomicBool::new(false));
     let thread = std::thread::Builder::new().name("hue-sync-stream".into()).spawn({
         let (app, stop, dropped, access, area) = (app.clone(), stop.clone(), dropped.clone(), access.clone(), area.clone());
+        let tuning = tuning.clone();
         move || {
-            let result = stream_loop(&app, &stop, &dropped, &access, &area, &client_key, effect);
+            let result = stream_loop(&app, &stop, &dropped, &access, &area, &client_key, effect, &tuning);
             drop(audio); // capture ends with the stream
             drop(screen);
             result
@@ -336,7 +351,7 @@ pub async fn start(app: &AppHandle, request: SyncRequest) -> Result<(), String> 
         }
     });
 
-    *session = Some(Session { stop, supervisor });
+    *session = Some(Session { stop, supervisor, tuning });
     Ok(())
 }
 
@@ -418,6 +433,7 @@ async fn watch_area(app: AppHandle, access: BridgeAccess, area_id: String, dropp
 /// The stream thread: connect, then render -> encode -> send at 50 Hz until
 /// told to stop. A stream the bridge dropped is reconnected. Returns the
 /// number of packets sent.
+#[allow(clippy::too_many_arguments)]
 fn stream_loop(
     app: &AppHandle,
     stop: &AtomicBool,
@@ -426,6 +442,7 @@ fn stream_loop(
     area: &Area,
     client_key: &str,
     mut effect: Box<dyn Effect>,
+    tuning: &SharedTuning,
 ) -> Result<u32, String> {
     let connected = Instant::now();
     let mut stream = DtlsStream::connect(&access.ip, &access.key, client_key)?;
@@ -444,6 +461,7 @@ fn stream_loop(
     // Instant doesn't advance while the computer sleeps; the wall clock does.
     let mut wall = SystemTime::now();
     let mut preview: Vec<String> = Vec::new();
+    let mut brightness = BrightnessStage::default();
     // Why the stream needs a new connection, if it does.
     let mut broken: Option<String> = None;
     while !stop.load(Ordering::SeqCst) {
@@ -474,7 +492,8 @@ fn stream_loop(
         let dt = now.duration_since(last).as_secs_f32();
         last = now;
 
-        let colors = effect.render(dt, &area.channels);
+        let mut colors = effect.render(dt, &area.channels);
+        brightness.apply(&tuning.lock().unwrap(), &mut colors);
         let channels: Vec<ChannelColor> = area
             .channels
             .iter()

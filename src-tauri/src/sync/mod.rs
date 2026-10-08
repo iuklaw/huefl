@@ -7,6 +7,7 @@
 //   entertainment/  REST (areas, start/stop), packet format, DTLS
 //   readiness.rs    what sync needs, as a checklist
 //   effects.rs      what the lights show
+//   tuning.rs       the sync settings (Brightness, Speed, Vividness, Sensitivity)
 //   manager.rs      one session at a time: state machine + cleanup
 
 pub mod audio;
@@ -16,6 +17,7 @@ pub mod manager;
 pub mod readiness;
 pub mod screen;
 pub mod smoothing;
+pub mod tuning;
 
 use serde::Serialize;
 use serde_json::json;
@@ -134,6 +136,13 @@ pub async fn sync_start(app: AppHandle, request: SyncRequest) -> Result<(), Stri
     manager::start(&app, request).await
 }
 
+/// The sync settings changed: the running session follows at once.
+#[tauri::command]
+pub async fn sync_tune(manager: State<'_, SyncManager>, tuning: tuning::Tuning) -> Result<(), String> {
+    manager.tune(tuning).await;
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn sync_stop(app: AppHandle) {
     manager::stop(&app).await;
@@ -234,7 +243,7 @@ mod live {
         let grid = Arc::new(Mutex::new(None));
         let lost = Arc::new(AtomicBool::new(false));
         let source = ScreenSource::start(None, grid.clone(), lost.clone(), Box::new(|e| println!("screen: {e:?}"))).unwrap();
-        let mut effect = ScreenEffect::new(1, true, grid, lost, Arc::default());
+        let mut effect = ScreenEffect::new(Arc::default(), true, grid, lost, Arc::default());
 
         access.set_streaming(&hue, &area.id, true).await.unwrap();
         let cpu_before = cpu_seconds();

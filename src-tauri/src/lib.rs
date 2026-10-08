@@ -78,6 +78,7 @@ pub fn run() {
             sync::sync_overview,
             sync::sync_start,
             sync::sync_stop,
+            sync::sync_tune,
             sync::sync_status,
             sync::sync_audio_devices,
             sync::sync_monitors,
