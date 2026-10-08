@@ -1,7 +1,8 @@
 // Create or edit a sync area (an Entertainment configuration on the bridge):
 //   1. what it is for (music / TV / desk monitor)
 //   2. which lights - only those that can stream; the rest are shown with why not
-//   3. where they are (screen areas only): drag the lights on a top view
+//   3. where they are: drag the lights on a top view. For music only the
+//      left-to-right order counts (Spectrum: bass left, treble right).
 // Areas made here and in the Philips Hue app are the same bridge resources.
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -82,8 +83,7 @@ export function AreaWizard({ open, onOpenChange, syncLights, area, onSaved }: Pr
     setPositions(spreadIfUnplaced(next, kind));
   };
 
-  const isScreen = kind !== "music";
-  const steps = isScreen ? 3 : 2;
+  const steps = 3;
   const last = step === steps - 1;
 
   const save = async () => {
@@ -163,8 +163,9 @@ export function AreaWizard({ open, onOpenChange, syncLights, area, onSaved }: Pr
           />
         )}
 
-        {step === 2 && isScreen && (
+        {step === 2 && (
           <LayoutEditor
+            kind={kind}
             lights={lights.filter((l) => positions.has(l.id))}
             positions={positions}
             onMove={(lightId, position) => setPositions(new Map(positions).set(lightId, position))}
@@ -292,13 +293,16 @@ function whyNot(light: LightView): string {
  * Top view: the screen along the top edge, the viewer at the bottom. Hue
  * positions are relative (-1..1), not meters - x left->right, y from where you
  * sit (-1) to the screen (1); height (z) stays as is. So the scale is
- * descriptive: a grid, labelled edges, and a plain-words readout.
+ * descriptive: a grid, labelled edges, and a plain-words readout. Music areas
+ * have no screen: only left / right is described.
  */
 function LayoutEditor({
+  kind,
   lights,
   positions,
   onMove,
 }: {
+  kind: Kind;
   lights: LightView[];
   positions: Map<string, Position3>;
   onMove: (lightId: string, position: Position3) => void;
@@ -318,10 +322,13 @@ function LayoutEditor({
 
   const focused = lights.find((l) => l.id === focus);
   const focusedAt = focused ? positions.get(focused.id) : undefined;
+  const music = kind === "music";
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">{t("sync.area.layout_hint")}</p>
+      <p className="text-xs text-muted-foreground">
+        {music ? t("sync.area.layout_hint_music") : t("sync.area.layout_hint")}
+      </p>
 
       <div className="flex gap-1.5">
         <div className="min-w-0 flex-1">
@@ -352,10 +359,12 @@ function LayoutEditor({
               </div>
             ))}
             {/* The screen */}
-            <div
-              className="absolute inset-x-[20%] top-1 h-1.5 rounded-sm bg-foreground/60"
-              aria-hidden
-            />
+            {!music && (
+              <div
+                className="absolute inset-x-[20%] top-1 h-1.5 rounded-sm bg-foreground/60"
+                aria-hidden
+              />
+            )}
 
             {lights.map((light) => {
               const p = positions.get(light.id)!;
@@ -397,20 +406,27 @@ function LayoutEditor({
         </div>
 
         {/* Ruler: distance from the screen (the board's height, not the labels below) */}
-        <div className="mb-4 flex w-14 shrink-0 flex-col justify-between py-0.5 text-[9px] leading-tight text-muted-foreground">
-          <span>{t("sync.area.scale.at_screen")}</span>
-          <span>{t("sync.area.scale.halfway")}</span>
-          <span>{t("sync.area.scale.you")}</span>
-        </div>
+        {!music && (
+          <div className="mb-4 flex w-14 shrink-0 flex-col justify-between py-0.5 text-[9px] leading-tight text-muted-foreground">
+            <span>{t("sync.area.scale.at_screen")}</span>
+            <span>{t("sync.area.scale.halfway")}</span>
+            <span>{t("sync.area.scale.you")}</span>
+          </div>
+        )}
       </div>
 
       <p className="min-h-4 text-xs" aria-live="polite">
         {focused && focusedAt
-          ? t("sync.area.where", {
-              name: focused.name,
-              x: t(`sync.area.where_x.${sideOf(focusedAt.x)}` as MessageKey),
-              y: t(`sync.area.where_y.${depthOf(focusedAt.y)}` as MessageKey),
-            })
+          ? music
+            ? t("sync.area.where_side", {
+                name: focused.name,
+                x: t(`sync.area.where_x.${sideOf(focusedAt.x)}` as MessageKey),
+              })
+            : t("sync.area.where", {
+                name: focused.name,
+                x: t(`sync.area.where_x.${sideOf(focusedAt.x)}` as MessageKey),
+                y: t(`sync.area.where_y.${depthOf(focusedAt.y)}` as MessageKey),
+              })
           : ""}
       </p>
     </div>
