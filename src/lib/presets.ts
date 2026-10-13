@@ -49,9 +49,17 @@ export function captureScene(lights: readonly LightView[]): Record<string, Scene
 
 /** Commands restoring a scene; lights added to the room since are left alone. */
 export function sceneCommands(scene: Scene, lights: readonly LightView[]): LightCommand[] {
+  return stateCommands(scene.lights, lights);
+}
+
+/** Commands bringing lights back to captured states (captureScene); others are left alone. */
+export function stateCommands(
+  states: Record<string, SceneLightState>,
+  lights: readonly LightView[],
+): LightCommand[] {
   const commands: LightCommand[] = [];
   for (const light of lights) {
-    const state = scene.lights[light.id];
+    const state = states[light.id];
     if (!state) continue;
     const command: LightCommand = { id: light.id, on: state.on };
     if (state.on) {

@@ -35,7 +35,14 @@ import {
   toHueView,
   type Snapshot,
 } from "@/hue/model";
-import { captureScene, paletteCommands, pushHistory, sceneCommands } from "@/lib/presets";
+import { hexToRgb, rgbToXy } from "@/lib/color";
+import {
+  captureScene,
+  paletteCommands,
+  pushHistory,
+  sceneCommands,
+  stateCommands,
+} from "@/lib/presets";
 import { CommandQueue } from "@/queue";
 import { DEFAULT_SETTINGS, loadSettings, NO_BRIDGE, saveSettings, type Settings } from "@/store";
 import type { Actions, AppState, Library, LightCommand, Preferences, Result } from "@/types";
@@ -232,6 +239,29 @@ export const actions: Actions = {
       lights: commands.length,
     });
     for (const command of commands) void applyLightCommand(command, { silent: true });
+  },
+
+  paintLights: (colors) => {
+    for (const [id, hex] of Object.entries(colors)) {
+      const light = state.lights.find((l) => l.id === id);
+      if (!light?.capabilities.color) continue;
+      const xy = rgbToXy(hexToRgb(hex), light.gamut ?? undefined);
+      void applyLightCommand({ id, on: true, brightness: 100, xy }, { silent: true });
+    }
+  },
+
+  showLightColors: (colors) => {
+    const before = captureScene(state.lights.filter((l) => l.id in colors));
+    log.info("command", "lights.identify", "Lights show their place in the layout", {
+      lights: Object.keys(colors).length,
+    });
+    actions.paintLights(colors);
+    return () => {
+      for (const command of stateCommands(before, state.lights)) {
+        void applyLightCommand(command, { silent: true });
+      }
+      log.info("command", "lights.restored", "Lights back as they were");
+    };
   },
 
   applyPalette: (roomId, palette) => {

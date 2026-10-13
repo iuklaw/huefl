@@ -157,6 +157,10 @@ export type Actions = {
   deleteScene(sceneId: string): Promise<void>;
   applyScene(scene: Scene): void;
   applyPalette(roomId: string, palette: Palette): void;
+  /** Sets lights to colors ("#RRGGBB"), quietly - for placing lights in the layout editor. */
+  paintLights(colors: Record<string, string>): void;
+  /** Remembers how the lights are, paints them; the returned function puts them back. */
+  showLightColors(colors: Record<string, string>): () => void;
   setSyncPrefs(patch: Partial<SyncPrefs>): Promise<void>;
   /** Changes one mode's sync settings; the running sync follows at once.
    *  `commit`: also save them (once a slider is let go). */
