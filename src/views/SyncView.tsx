@@ -17,10 +17,12 @@ import {
   Square,
   Trash2,
   Monitor,
+  Move3d,
   Music,
 } from "lucide-react";
 import { AreaWizard } from "@/components/sync/AreaWizard";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Segmented } from "@/components/Segmented";
 import { ScreenPreview } from "@/components/sync/ScreenPreview";
 import { SpectrumBars } from "@/components/sync/SpectrumBars";
 import { Readiness } from "@/components/sync/Readiness";
@@ -73,7 +75,13 @@ type Props = { onRepair: () => void };
 
 export function SyncView({ onRepair }: Props) {
   const { status, overview, loading, error } = useSyncState();
-  const [wizard, setWizard] = useState<{ open: boolean; area?: SyncArea }>({ open: false });
+  const [wizard, setWizard] = useState<{
+    open: boolean;
+    area?: SyncArea;
+    layoutOnly?: boolean;
+    /** Sync was running when the editor opened: start it again on close. */
+    resume?: () => void;
+  }>({ open: false });
 
   useEffect(() => {
     void sync.refresh();
@@ -84,8 +92,12 @@ export function SyncView({ onRepair }: Props) {
     <AreaWizard
       open={wizard.open}
       area={wizard.area}
+      layoutOnly={wizard.layoutOnly}
       syncLights={overview.lights}
-      onOpenChange={(open) => setWizard((w) => ({ ...w, open }))}
+      onOpenChange={(open) => {
+        if (!open) wizard.resume?.();
+        setWizard((w) => ({ ...w, open, resume: open ? w.resume : undefined }));
+      }}
       onSaved={(areaId) => void actions.setSyncPrefs({ areaId })}
     />
   );
@@ -98,6 +110,7 @@ export function SyncView({ onRepair }: Props) {
           areas={overview.areas}
           onNewArea={() => setWizard({ open: true })}
           onEditArea={(area) => setWizard({ open: true, area })}
+          onEditLayout={(area, resume) => setWizard({ open: true, area, layoutOnly: true, resume })}
         />
         {wizardDialog}
       </>
@@ -163,10 +176,13 @@ function SyncControls({
   areas,
   onNewArea,
   onEditArea,
+  onEditLayout,
 }: {
   areas: SyncArea[];
   onNewArea: () => void;
   onEditArea: (area: SyncArea) => void;
+  /** `resume`: given when sync was stopped for the editor. */
+  onEditLayout: (area: SyncArea, resume?: () => void) => void;
 }) {
   const { status, preview, overview, audioLost, reconnecting, monitors } = useSyncState();
   const audioCheck = overview?.checks.find((c) => c.id === "audio");
@@ -246,6 +262,13 @@ function SyncControls({
     });
   };
 
+  const editLayout = async () => {
+    if (!area) return;
+    const wasRunning = running;
+    if (wasRunning) await sync.stop();
+    onEditLayout(area, wasRunning ? () => start() : undefined);
+  };
+
   if (!area) return null;
   const showBars = status.state === "streaming" && mode === "music";
   const showScreen = status.state === "streaming" && mode === "screen";
@@ -285,6 +308,15 @@ function SyncControls({
               </Select>
               <IconButton label={t("sync.area.new")} disabled={busy} onClick={onNewArea}>
                 <Plus />
+              </IconButton>
+              {/* Works while syncing too: sync pauses - the lights show their
+                  places while being placed - and starts again after. */}
+              <IconButton
+                label={t("sync.area.edit_layout")}
+                disabled={status.state === "starting" || status.state === "stopping"}
+                onClick={() => void editLayout()}
+              >
+                <Move3d />
               </IconButton>
               <IconButton
                 label={t("sync.area.edit")}
@@ -797,45 +829,6 @@ function LiveLights({ colors }: { colors: string[] }) {
           className="size-5 rounded-full ring-1 ring-border transition-colors duration-100"
           style={{ backgroundColor: hex, boxShadow: `0 0 12px ${hex}` }}
         />
-      ))}
-    </div>
-  );
-}
-
-function Segmented<T extends string>({
-  options,
-  value,
-  disabled,
-  onChange,
-}: {
-  options: { value: T; label: string }[];
-  value: T;
-  disabled?: boolean;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div
-      className="grid gap-1 rounded-lg bg-muted p-1"
-      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
-      role="radiogroup"
-    >
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="radio"
-          aria-checked={value === option.value}
-          disabled={disabled}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            "rounded-md py-1 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
-            value === option.value
-              ? "bg-background font-medium shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {option.label}
-        </button>
       ))}
     </div>
   );
